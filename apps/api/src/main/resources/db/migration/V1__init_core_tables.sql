@@ -1,0 +1,40 @@
+CREATE TABLE IF NOT EXISTS user_account (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  email VARCHAR(128) NOT NULL,
+  display_name VARCHAR(64) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(32) NOT NULL DEFAULT 'user',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_user_account_email (email)
+);
+
+CREATE TABLE IF NOT EXISTS resume_template (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  code VARCHAR(64) NOT NULL,
+  name VARCHAR(128) NOT NULL,
+  category VARCHAR(64) NOT NULL,
+  cover_image_url VARCHAR(255) NULL,
+  schema_json JSON NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_resume_template_code (code)
+);
+
+CREATE TABLE IF NOT EXISTS resume (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  template_id BIGINT NULL,
+  title VARCHAR(128) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'draft',
+  visibility VARCHAR(32) NOT NULL DEFAULT 'private',
+  content_json JSON NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_resume_user FOREIGN KEY (user_id) REFERENCES user_account (id),
+  CONSTRAINT fk_resume_template FOREIGN KEY (template_id) REFERENCES resume_template (id)
+);
+
+CREATE INDEX idx_resume_user_id ON resume (user_id);
+CREATE INDEX idx_resume_status ON resume (status);

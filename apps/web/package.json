@@ -1,0 +1,26 @@
+{
+  "name": "resume-platform-web",
+  "private": true,
+  "scripts": {
+    "dev": "max dev",
+    "build": "max build",
+    "lint": "max lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.0.1",
+    "@umijs/max": "^4.6.33",
+    "antd": "^5.27.6",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "less": "^4.4.1",
+    "typescript": "^5.9.2"
+  }
+}
