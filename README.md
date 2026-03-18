@@ -67,3 +67,35 @@ You can override them with shell env vars based on [`.env.example`](/Users/zhufe
 2. Model resume, template, and user domain modules in the backend.
 3. Build the resume editor, template marketplace, and publish/share flows.
 4. Add file/object storage integration for avatar uploads and exported assets.
+
+## Production Deployment
+
+The repository now includes a production-oriented Docker setup:
+
+- [`apps/web/Dockerfile`](/Users/zhufeng/Desktop/wh/apps/web/Dockerfile): builds the frontend and serves it with Nginx
+- [`apps/web/nginx/default.conf`](/Users/zhufeng/Desktop/wh/apps/web/nginx/default.conf): serves the SPA and proxies `/api` to the backend
+- [`apps/api/Dockerfile`](/Users/zhufeng/Desktop/wh/apps/api/Dockerfile): packages the Spring Boot API into a runnable image
+- [`infra/docker-compose.prod.yml`](/Users/zhufeng/Desktop/wh/infra/docker-compose.prod.yml): starts MySQL, Redis, API, and Web for production-like deployment
+
+### Example server workflow
+
+1. Copy the example environment file:
+
+   ```bash
+   cp infra/.env.prod.example infra/.env.prod
+   ```
+
+2. Adjust database passwords and allowed origins in `infra/.env.prod`.
+
+3. Start the production stack:
+
+   ```bash
+   docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml up -d --build
+   ```
+
+4. Check running services:
+
+   ```bash
+   docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml ps
+   docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml logs -f
+   ```

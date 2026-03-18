@@ -1,0 +1,12 @@
+.git
+.gitignore
+.DS_Store
+node_modules
+**/node_modules
+apps/api/target
+apps/web/dist
+apps/web/src/.umi
+apps/web/src/.umi-production
+output
+.playwright-cli
+.superdesign
