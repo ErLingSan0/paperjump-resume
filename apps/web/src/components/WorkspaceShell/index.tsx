@@ -108,7 +108,7 @@ export default function WorkspaceShell(props: WorkspaceShellProps) {
             <span className="workspace-shell__brand-mark">纸</span>
             <span className="workspace-shell__brand-copy">
               <strong>纸跃简历</strong>
-              <small>官网首页</small>
+              <small>在线简历工作区</small>
             </span>
           </button>
 

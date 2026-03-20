@@ -68,7 +68,7 @@ const productMetrics = [
 const workflowSteps = [
   {
     title: '先选一个模板',
-    description: '测试自动部署文案',
+    description: '从模板库选一个接近目标岗位的版式，再进入编辑器开始写。',
     icon: <RocketOutlined />,
   },
   {
