@@ -6,15 +6,12 @@ import type {
   ProfileFact,
   ProjectEntry,
   ResumeDraft,
-  ResumeDraftSummary,
   ResumeFontFamily,
   ResumeLayoutPreset,
   ResumeTitleStyle,
 } from '@/types/resume';
 import { resumeSectionKeys } from '@/types/resume';
 
-const STORAGE_PREFIX = 'paperjump-resume';
-const DRAFT_INDEX_KEY = `${STORAGE_PREFIX}:draft-index`;
 const layoutPresets: ResumeLayoutPreset[] = ['classic', 'compact'];
 const accentTones: ResumeAccentTone[] = ['cobalt', 'sage', 'ink'];
 const fontFamilies: ResumeFontFamily[] = ['studio', 'system', 'serif'];
@@ -30,24 +27,8 @@ const legacyRelaxedStyle = {
   sectionSpacing: 22,
 };
 
-function getStorage() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  return window.localStorage;
-}
-
-function draftKey(id: string) {
-  return `${STORAGE_PREFIX}:draft:${id}`;
-}
-
 function createEntryId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-export function createDraftId() {
-  return `draft-${Date.now().toString(36)}`;
 }
 
 function createProfileFact(label = '', value = ''): ProfileFact {
@@ -61,12 +42,12 @@ function createProfileFact(label = '', value = ''): ProfileFact {
 function createEducationEntry(): EducationEntry {
   return {
     id: createEntryId('edu'),
-    school: '北京邮电大学',
-    major: '软件工程',
+    school: '上海大学',
+    major: '信息管理与信息系统',
     degree: '本科',
-    startDate: '2020.09',
-    endDate: '2024.06',
-    description: 'GPA 3.8 / 4.0，主修数据结构、操作系统、计算机网络。',
+    startDate: '2021.09',
+    endDate: '2025.06',
+    description: 'GPA 3.7 / 4.0，主修用户研究、数据分析、项目管理与信息设计。',
   };
 }
 
@@ -74,12 +55,13 @@ function createExperienceEntry(): ExperienceEntry {
   return {
     id: createEntryId('exp'),
     company: '星桥科技',
-    role: '前端开发实习生',
+    role: '运营实习生',
     startDate: '2023.07',
     endDate: '2023.12',
-    description: '负责运营后台和活动页面开发，推动表单渲染效率优化，页面交付效率提升约 30%。',
+    description: '参与活动专题与内容协作，负责资料整理、跨团队沟通和效果复盘。\n推动活动上线节奏更稳定，交付过程更清晰。',
     highlights: [
-      '负责运营后台和活动页面开发，推动表单渲染效率优化，页面交付效率提升约 30%。',
+      '参与活动专题与内容协作，负责资料整理、跨团队沟通和效果复盘。',
+      '推动活动上线节奏更稳定，交付过程更清晰。',
     ],
   };
 }
@@ -87,15 +69,16 @@ function createExperienceEntry(): ExperienceEntry {
 function createProjectEntry(): ProjectEntry {
   return {
     id: createEntryId('project'),
-    name: '简历编辑器',
-    role: '项目负责人',
+    name: '校园品牌活动项目',
+    role: '项目协调',
     startDate: '2023.03',
     endDate: '2023.06',
-    link: 'https://github.com/chenyiming/resume-editor',
-    techStack: ['React', 'TypeScript', 'Umi 4', 'Ant Design'],
-    description: '从 0 到 1 设计在线写简历产品原型，支持结构化表单录入、实时预览和草稿保存。',
+    link: '',
+    techStack: ['活动策划', '用户沟通', '复盘整理'],
+    description: '统筹活动物料、执行日程和沟通流程，支持报名、现场执行与复盘整理。\n沉淀出一套可复用的协作模板，后续活动推进更顺畅。',
     highlights: [
-      '从 0 到 1 设计在线写简历产品原型，支持结构化表单录入、实时预览和草稿保存。',
+      '统筹活动物料、执行日程和沟通流程，支持报名、现场执行与复盘整理。',
+      '沉淀出一套可复用的协作模板，后续活动推进更顺畅。',
     ],
   };
 }
@@ -178,20 +161,26 @@ function normalizeEducationEntry(item: unknown): EducationEntry {
 
 function normalizeExperienceEntry(item: unknown): ExperienceEntry {
   const entry = (item ?? {}) as Partial<ExperienceEntry>;
-  const highlights = normalizeHighlights(entry.highlights, entry.description);
+  const normalizedDescription = typeof entry.description === 'string'
+    ? entry.description.replace(/\r\n/g, '\n')
+    : '';
+  const highlights = normalizeHighlights(entry.highlights, normalizedDescription);
 
   return {
     ...createEmptyExperienceEntry(),
     ...entry,
     id: entry.id || createEntryId('exp'),
     highlights,
-    description: serializeHighlights(highlights, entry.description),
+    description: normalizedDescription || serializeHighlights(highlights),
   };
 }
 
 function normalizeProjectEntry(item: unknown): ProjectEntry {
   const entry = (item ?? {}) as Partial<ProjectEntry>;
-  const rawHighlights = normalizeHighlights(entry.highlights, entry.description);
+  const normalizedDescription = typeof entry.description === 'string'
+    ? entry.description.replace(/\r\n/g, '\n')
+    : '';
+  const rawHighlights = normalizeHighlights(entry.highlights, normalizedDescription);
   const extractedMeta = extractProjectMeta(rawHighlights);
   const highlights = extractedMeta.highlights;
 
@@ -202,7 +191,7 @@ function normalizeProjectEntry(item: unknown): ProjectEntry {
     link: normalizeProjectLink(entry.link || extractedMeta.link),
     techStack: normalizeTechStack(entry.techStack, extractedMeta.techStack),
     highlights,
-    description: serializeHighlights(highlights),
+    description: normalizedDescription || serializeHighlights(highlights),
   };
 }
 
@@ -282,7 +271,7 @@ function extractProjectMeta(highlights: string[]) {
       }
     }
 
-    const stackMatch = normalizedLine.match(/^(技术栈|Tech Stack|Tech|技术方案)\s*[:：-]\s*(.+)$/i);
+    const stackMatch = normalizedLine.match(/^(技术栈|Tech Stack|Tech|技术方案|关键词|标签|工具|方法)\s*[:：-]\s*(.+)$/i);
     if (stackMatch) {
       const extractedTechStack = normalizeTechStack(stackMatch[2]);
       if (extractedTechStack.length) {
@@ -378,17 +367,20 @@ function normalizeNumber(
 export function createEmptyDraft(id: string): ResumeDraft {
   const profile = {
     fullName: '陈一鸣',
-    headline: '前端开发工程师 / 校招',
+    headline: '产品运营 / 通用求职',
     phone: '13800000000',
     email: 'chenyiming@example.com',
     location: '上海',
-    website: 'github.com/chenyiming',
+    website: 'chenyiming.me',
     avatar: '',
-    facts: [createProfileFact('求职状态', '2026 届应届生')],
+    facts: [createProfileFact('求职状态', '可尽快到岗')],
   };
 
   return {
     id,
+    templateId: null,
+    status: 'draft',
+    visibility: 'private',
     title: deriveDraftTitle(profile.fullName),
     updatedAt: new Date().toISOString(),
     layoutPreset: 'classic',
@@ -401,12 +393,12 @@ export function createEmptyDraft(id: string): ResumeDraft {
     sectionSpacing: 16,
     profile,
     summary:
-      '熟悉 React、TypeScript 与工程化流程，关注界面体验与可维护性，希望寻找一份能持续打磨产品质量的前端岗位。',
+      '关注内容组织、项目推进和用户体验，希望在产品、运营、项目协作或研究分析相关岗位持续积累方法。',
     education: [createEducationEntry()],
     experience: [createExperienceEntry()],
     projects: [createProjectEntry()],
-    skills: 'React\nTypeScript\nAnt Design\nVite / Umi\nNode.js',
-    awards: '校二等奖学金\n全国大学生软件设计大赛省奖',
+    skills: '内容策划\n数据整理\n跨团队协作\n用户研究\nOffice / 飞书',
+    awards: '校级奖学金\n英语六级',
     visibleSections: {
       summary: true,
       education: true,
@@ -417,6 +409,79 @@ export function createEmptyDraft(id: string): ResumeDraft {
     },
     sectionOrder: [...resumeSectionKeys],
     customSections: [],
+  };
+}
+
+const templateStarterContentPresets = {
+  'campus-launch': {
+    headline: '应届生 / 校招求职',
+    summary: '以清晰、稳妥的方式呈现教育背景、项目经历和校园实践，适合第一份正式投递简历。',
+    skills: '沟通表达\n资料整理\n项目协作\nOffice / 飞书',
+    awards: '校级奖学金\n英语六级',
+  },
+  'internship-sprint': {
+    headline: '运营实习 / 增长方向',
+    summary: '关注执行节奏、内容组织和效果复盘，希望在运营、产品支持或项目协作岗位持续成长。',
+    skills: '内容策划\n数据整理\n活动执行\n跨团队协作',
+    awards: '校级优秀干部\n英语六级',
+  },
+  'steady-general': {
+    headline: '产品专员 / 通用求职',
+    summary: '擅长把复杂信息整理成清晰方案，重视协作、推进节奏与用户体验。',
+    skills: '用户研究\n需求梳理\n项目推进\n结构化表达',
+    awards: '校级奖学金\n普通话二甲',
+  },
+  'project-story': {
+    headline: '项目策划 / 产品运营',
+    summary: '更适合突出完整项目经历，强调目标、过程和结果之间的连贯表达。',
+    skills: '项目策划\n方案整理\n复盘分析\n跨部门协作',
+    awards: '案例竞赛奖项\n英语六级',
+  },
+  'design-showcase': {
+    headline: 'UI / UX 设计师',
+    summary: '关注视觉系统、信息结构和交互体验，希望把作品与项目过程表达得更完整。',
+    skills: 'Figma\n视觉设计\n交互设计\n设计系统',
+    awards: '作品集入围\n设计比赛奖项',
+  },
+  'one-page-priority': {
+    headline: '综合岗位 / 一页版',
+    summary: '希望在一页之内完整表达经历重点，用更紧凑的方式保留关键信息。',
+    skills: '结构化表达\n信息提炼\n项目协作\n数据整理',
+    awards: '校级荣誉\n语言成绩',
+  },
+  'data-focus': {
+    headline: '数据分析 / 商业分析',
+    summary: '关注指标拆解、问题分析和策略建议，希望把结果和思路更清楚地呈现在纸面上。',
+    skills: 'SQL\nExcel\n数据分析\n报告撰写',
+    awards: '商业分析竞赛奖项\n研究助理经历',
+  },
+  'executive-brief': {
+    headline: '咨询 / 管理培训生',
+    summary: '重视结构化表达、项目推进和正式文档气质，适合咨询、管培或综合管理方向岗位。',
+    skills: '结构化思考\n汇报表达\n项目推进\n利益相关方沟通',
+    awards: '案例竞赛奖项\n语言成绩',
+  },
+} as const;
+
+export function applyTemplateStarterContent(draft: ResumeDraft, templateCode?: string | null): ResumeDraft {
+  if (!templateCode) {
+    return draft;
+  }
+
+  const preset = templateStarterContentPresets[templateCode as keyof typeof templateStarterContentPresets];
+  if (!preset) {
+    return draft;
+  }
+
+  return {
+    ...draft,
+    profile: {
+      ...draft.profile,
+      headline: preset.headline,
+    },
+    summary: preset.summary,
+    skills: preset.skills,
+    awards: preset.awards,
   };
 }
 
@@ -488,75 +553,6 @@ function normalizeDraft(input: unknown, id: string): ResumeDraft {
 
 export function hydrateDraft(input: unknown, id: string) {
   return normalizeDraft(input, id);
-}
-
-export function loadDraft(id: string) {
-  const storage = getStorage();
-  if (!storage) {
-    return null;
-  }
-
-  const raw = storage.getItem(draftKey(id));
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return normalizeDraft(JSON.parse(raw), id);
-  } catch {
-    return null;
-  }
-}
-
-export function loadDraftIndex() {
-  const storage = getStorage();
-  if (!storage) {
-    return [] as ResumeDraftSummary[];
-  }
-
-  const raw = storage.getItem(DRAFT_INDEX_KEY);
-  if (!raw) {
-    return [] as ResumeDraftSummary[];
-  }
-
-  try {
-    return (JSON.parse(raw) as ResumeDraftSummary[]).sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
-  } catch {
-    return [] as ResumeDraftSummary[];
-  }
-}
-
-export function saveDraft(draft: ResumeDraft) {
-  const storage = getStorage();
-  if (!storage) {
-    return;
-  }
-
-  storage.setItem(draftKey(draft.id), JSON.stringify(draft));
-
-  const nextSummary: ResumeDraftSummary = {
-    id: draft.id,
-    title: draft.title,
-    headline: draft.profile.headline,
-    updatedAt: draft.updatedAt,
-  };
-
-  const nextIndex = loadDraftIndex().filter((item) => item.id !== draft.id);
-  nextIndex.unshift(nextSummary);
-  storage.setItem(DRAFT_INDEX_KEY, JSON.stringify(nextIndex));
-}
-
-export function removeDraft(id: string) {
-  const storage = getStorage();
-  if (!storage) {
-    return;
-  }
-
-  storage.removeItem(draftKey(id));
-  const nextIndex = loadDraftIndex().filter((item) => item.id !== id);
-  storage.setItem(DRAFT_INDEX_KEY, JSON.stringify(nextIndex));
 }
 
 export function formatDraftTime(value: string) {

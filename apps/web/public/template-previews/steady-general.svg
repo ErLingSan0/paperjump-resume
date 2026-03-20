@@ -1,0 +1,26 @@
+<svg width="900" height="1260" viewBox="0 0 900 1260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1260" rx="40" fill="#F5F4EF"/>
+  <rect x="48" y="48" width="804" height="1164" rx="28" fill="white" stroke="#E5E7EB"/>
+  <rect x="96" y="96" width="708" height="12" rx="6" fill="#101418"/>
+  <rect x="96" y="132" width="270" height="22" rx="11" fill="#D8DEE6"/>
+  <text x="96" y="214" fill="#101418" font-size="46" font-family="Georgia" font-weight="700">Steady General</text>
+  <text x="96" y="250" fill="#6B7280" font-size="20" font-family="Arial">product manager / project delivery</text>
+  <rect x="96" y="294" width="708" height="1" fill="#E5E7EB"/>
+  <rect x="96" y="340" width="146" height="14" rx="7" fill="#101418"/>
+  <rect x="96" y="384" width="690" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="96" y="410" width="662" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="96" y="436" width="676" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="96" y="494" width="146" height="14" rx="7" fill="#101418"/>
+  <rect x="96" y="538" width="690" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="96" y="564" width="670" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="96" y="590" width="642" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="96" y="648" width="146" height="14" rx="7" fill="#101418"/>
+  <rect x="96" y="692" width="690" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="96" y="718" width="666" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="96" y="744" width="648" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="96" y="860" width="708" height="180" rx="24" fill="#F9FAFB"/>
+  <rect x="128" y="896" width="156" height="12" rx="6" fill="#101418"/>
+  <rect x="128" y="930" width="644" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="128" y="956" width="622" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="128" y="982" width="598" height="10" rx="5" fill="#E5E7EB"/>
+</svg>

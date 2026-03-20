@@ -1,0 +1,25 @@
+<svg width="900" height="1260" viewBox="0 0 900 1260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1260" rx="40" fill="#F7F6F0"/>
+  <rect x="48" y="48" width="804" height="1164" rx="28" fill="white" stroke="#DDE6DA"/>
+  <rect x="96" y="96" width="708" height="132" rx="26" fill="#EFF7ED"/>
+  <text x="132" y="154" fill="#234B1E" font-size="42" font-family="Arial" font-weight="700">Internship Sprint</text>
+  <text x="132" y="192" fill="#6B7A68" font-size="20" font-family="Arial">operation / growth / assistant</text>
+  <rect x="132" y="278" width="150" height="14" rx="7" fill="#6FA15E"/>
+  <rect x="132" y="322" width="622" height="11" rx="5.5" fill="#E6EDE4"/>
+  <rect x="132" y="348" width="608" height="11" rx="5.5" fill="#E6EDE4"/>
+  <rect x="132" y="374" width="592" height="11" rx="5.5" fill="#E6EDE4"/>
+  <rect x="132" y="432" width="636" height="168" rx="22" fill="#F8FBF7" stroke="#E6EDE4"/>
+  <rect x="160" y="464" width="164" height="12" rx="6" fill="#6FA15E"/>
+  <rect x="160" y="500" width="578" height="10" rx="5" fill="#E3E7E1"/>
+  <rect x="160" y="526" width="560" height="10" rx="5" fill="#E3E7E1"/>
+  <rect x="160" y="552" width="520" height="10" rx="5" fill="#E3E7E1"/>
+  <rect x="132" y="640" width="636" height="168" rx="22" fill="#F8FBF7" stroke="#E6EDE4"/>
+  <rect x="160" y="672" width="164" height="12" rx="6" fill="#6FA15E"/>
+  <rect x="160" y="708" width="576" height="10" rx="5" fill="#E3E7E1"/>
+  <rect x="160" y="734" width="552" height="10" rx="5" fill="#E3E7E1"/>
+  <rect x="160" y="760" width="514" height="10" rx="5" fill="#E3E7E1"/>
+  <rect x="132" y="880" width="190" height="14" rx="7" fill="#6FA15E"/>
+  <rect x="132" y="922" width="200" height="42" rx="21" fill="#EFF7ED"/>
+  <rect x="346" y="922" width="200" height="42" rx="21" fill="#EFF7ED"/>
+  <rect x="560" y="922" width="208" height="42" rx="21" fill="#EFF7ED"/>
+</svg>

@@ -1,0 +1,28 @@
+<svg width="900" height="1260" viewBox="0 0 900 1260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1260" rx="40" fill="#F9F7F1"/>
+  <rect x="48" y="48" width="804" height="1164" rx="28" fill="white" stroke="#DDE4F8"/>
+  <rect x="96" y="96" width="708" height="98" rx="22" fill="#EEF3FF"/>
+  <rect x="132" y="118" width="110" height="54" rx="14" fill="#2151FF"/>
+  <text x="270" y="140" fill="#101418" font-size="34" font-family="Arial" font-weight="700">Campus Launch</text>
+  <text x="270" y="174" fill="#738196" font-size="18" font-family="Arial">front-end intern / campus</text>
+  <rect x="132" y="240" width="240" height="16" rx="8" fill="#C6D4FF"/>
+  <rect x="132" y="286" width="636" height="12" rx="6" fill="#E8EDF8"/>
+  <rect x="132" y="314" width="612" height="12" rx="6" fill="#E8EDF8"/>
+  <rect x="132" y="342" width="590" height="12" rx="6" fill="#E8EDF8"/>
+  <rect x="132" y="404" width="176" height="14" rx="7" fill="#2151FF"/>
+  <rect x="132" y="444" width="636" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="132" y="470" width="622" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="132" y="496" width="598" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="132" y="556" width="176" height="14" rx="7" fill="#2151FF"/>
+  <rect x="132" y="596" width="636" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="132" y="622" width="610" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="132" y="648" width="594" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="132" y="708" width="176" height="14" rx="7" fill="#2151FF"/>
+  <rect x="132" y="748" width="636" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="132" y="774" width="624" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="132" y="800" width="588" height="10" rx="5" fill="#E5E7EB"/>
+  <rect x="132" y="912" width="196" height="14" rx="7" fill="#2151FF"/>
+  <rect x="132" y="950" width="220" height="36" rx="18" fill="#EEF3FF"/>
+  <rect x="366" y="950" width="220" height="36" rx="18" fill="#EEF3FF"/>
+  <rect x="600" y="950" width="168" height="36" rx="18" fill="#EEF3FF"/>
+</svg>

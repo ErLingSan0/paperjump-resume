@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   CheckCircleOutlined,
@@ -6,23 +6,20 @@ import {
   DeleteOutlined,
   EditOutlined,
   FileTextOutlined,
-  LockOutlined,
   PartitionOutlined,
   RocketOutlined,
-  SafetyOutlined,
   SafetyCertificateOutlined,
-  SyncOutlined,
 } from '@ant-design/icons';
-import { history } from '@umijs/max';
-import { Button, Card, Col, Empty, Modal, Row, Space, Tag, Typography } from 'antd';
+import { history, useModel } from '@umijs/max';
+import { Button, Card, Col, Empty, Modal, Row, Space, Tag, Typography, message } from 'antd';
 
+import AuthModal from '@/components/AuthModal';
+import { logout } from '@/services/auth';
+import { deleteResume, queryResumes } from '@/services/resumes';
 import type { ResumeDraftSummary } from '@/types/resume';
-import {
-  createDraftId,
-  formatDraftTime,
-  loadDraftIndex,
-  removeDraft,
-} from '@/utils/resumeDrafts';
+import { formatDraftTime } from '@/utils/resumeDrafts';
+import { getErrorMessage } from '@/utils/request';
+import { buildTemplatePickerPath } from '@/utils/templateFlow';
 
 const productName = '纸跃简历';
 
@@ -34,12 +31,12 @@ const featureCards = [
   },
   {
     title: '边写边看预览',
-    description: '右侧实时展示简历成品，不用反复导出 PDF 才知道版式是不是顺手。',
+    description: '编辑区和预览区同时工作，内容、顺序和版式变化都能立刻看到。',
     icon: <FileTextOutlined />,
   },
   {
-    title: '本地自动保存',
-    description: '先把最重要的写作流程跑通，打开就能继续编辑，不需要注册登录。',
+    title: '云端自动保存',
+    description: '登录后会自动保存到账号里，换设备也能继续写。',
     icon: <ClockCircleOutlined />,
   },
   {
@@ -60,18 +57,18 @@ const productMetrics = [
   },
   {
     label: '保存方式',
-    value: '本地自动保存',
+    value: '账号云端保存',
   },
   {
-    label: '当前方向',
-    value: '先把在线写简历做好',
+    label: '访问方式',
+    value: '浏览器在线编辑',
   },
 ];
 
 const workflowSteps = [
   {
-    title: '先起一份草稿',
-    description: '不用注册，不用配置模板，直接从最常用的简历结构开始写。',
+    title: '先选一个模板',
+    description: '从模板库选一个接近目标岗位的版式，再进入编辑器开始写。',
     icon: <RocketOutlined />,
   },
   {
@@ -88,64 +85,139 @@ const workflowSteps = [
 
 const qualityHighlights = [
   {
-    title: '本地优先',
-    description: '草稿直接存在浏览器里，打开就能接着写。',
+    title: '云端保存',
+    description: '登录后，简历、收藏和编辑进度都会保存在同一个账号里。',
     icon: <SafetyCertificateOutlined />,
   },
   {
     title: '导出与备份',
-    description: '写完就能导出成品，也能保留 JSON 备份，不把写作节奏打断。',
+    description: '写完后可以直接导出成品，也能保留 JSON 备份。',
     icon: <CheckCircleOutlined />,
   },
 ];
 
-const accountRoadmap = [
-  {
-    title: '登录注册',
-    description: '接入账号后，草稿不再只留在当前浏览器，后面会支持稳定登录和身份识别。',
-    icon: <LockOutlined />,
-  },
-  {
-    title: '多端同步',
-    description: '同一份简历会在不同设备之间保持一致，电脑和移动端切换时不用重新导入。',
-    icon: <SyncOutlined />,
-  },
-  {
-    title: '云端草稿',
-    description: '除了本地自动保存，还会有云端备份和恢复，避免更换设备时丢失进度。',
-    icon: <SafetyOutlined />,
-  },
-];
-
 export default function HomePage() {
+  const { initialState, setInitialState } = useModel('@@initialState');
+  const currentUser = initialState?.currentUser;
   const [drafts, setDrafts] = useState<ResumeDraftSummary[]>([]);
-
-  function refreshDrafts() {
-    setDrafts(loadDraftIndex());
-  }
+  const [loading, setLoading] = useState(false);
+  const [authModalState, setAuthModalState] = useState<{
+    mode: 'login' | 'register';
+    open: boolean;
+    redirect: string;
+  }>({
+    mode: 'login',
+    open: false,
+    redirect: '/resumes',
+  });
 
   useEffect(() => {
-    refreshDrafts();
-  }, []);
+    let cancelled = false;
+
+    async function loadDrafts() {
+      if (!currentUser) {
+        setDrafts([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const nextDrafts = await queryResumes();
+        if (!cancelled) {
+          setDrafts(nextDrafts);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          message.error(getErrorMessage(error, '简历列表加载失败，请稍后再试'));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadDrafts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser]);
+
+  const workspaceSummary = useMemo(() => {
+    if (!currentUser) {
+      return {
+        title: '登录后保存你的简历',
+        description: '注册后可以随时回来继续编辑，不用担心内容丢失。',
+      };
+    }
+
+    return {
+      title: '我的简历',
+      description: '这里可以继续编辑、删除，或者直接去模板中心开始下一份。',
+    };
+  }, [currentUser]);
+
+  function openAuthModal(mode: 'login' | 'register', redirect = '/resumes') {
+    setAuthModalState({
+      open: true,
+      mode,
+      redirect,
+    });
+  }
+
+  function closeAuthModal() {
+    setAuthModalState((state) => ({
+      ...state,
+      open: false,
+    }));
+  }
 
   function handleCreateDraft() {
-    history.push(`/maker/${createDraftId()}`);
+    if (!currentUser) {
+      openAuthModal('register', buildTemplatePickerPath({ from: 'home', intent: 'create' }));
+      return;
+    }
+
+    history.push(buildTemplatePickerPath({ from: 'home', intent: 'create' }));
   }
 
   function handleDeleteDraft(id: string) {
     Modal.confirm({
-      title: '删除这份本地草稿？',
-      content: '这会从当前浏览器里移除草稿内容，删除后无法恢复。',
+      title: '删除这份简历？',
+      content: '删除后将从你的账号中移除，且无法恢复。',
       okText: '删除',
       okButtonProps: {
         danger: true,
       },
       cancelText: '取消',
-      onOk: () => {
-        removeDraft(id);
-        refreshDrafts();
-      },
+          onOk: async () => {
+            try {
+              await deleteResume(id);
+              message.success('简历已删除');
+              const nextDrafts = await queryResumes();
+              setDrafts(nextDrafts);
+            } catch (error) {
+              message.error(getErrorMessage(error, '删除失败，请稍后再试'));
+            }
+          },
     });
+  }
+
+  async function handleLogout() {
+    try {
+      await logout();
+      await setInitialState((state) => ({
+        ...(state ?? {}),
+        currentUser: undefined,
+      }));
+      history.push('/');
+      message.success('已退出登录');
+    } catch (error) {
+      message.error(getErrorMessage(error, '退出失败，请稍后再试'));
+    }
   }
 
   return (
@@ -160,13 +232,30 @@ export default function HomePage() {
             </div>
           </div>
           <div className="paperjump-home__header-actions">
-            <div className="paperjump-home__header-plan">
-              <span>账号体系</span>
-              <strong>登录注册 / 多端同步</strong>
-            </div>
-            <Button size="large" onClick={handleCreateDraft}>
-              立即开始
-            </Button>
+            <Space wrap size={12}>
+              {currentUser ? (
+                <>
+                  <Button size="large" onClick={() => history.push('/resumes')}>
+                    我的简历
+                  </Button>
+                  <Button size="large" type="primary" onClick={handleCreateDraft}>
+                    选模板开始
+                  </Button>
+                  <Button size="large" onClick={handleLogout}>
+                    退出登录
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="large" onClick={() => openAuthModal('login', '/resumes')}>
+                    登录 / 注册
+                  </Button>
+                  <Button size="large" type="primary" onClick={handleCreateDraft}>
+                    立即开始
+                  </Button>
+                </>
+              )}
+            </Space>
           </div>
         </div>
       </header>
@@ -175,15 +264,15 @@ export default function HomePage() {
         <section className="paperjump-home__hero">
           <div className="paperjump-home__inner paperjump-home__hero-grid">
             <div className="paperjump-home__hero-copy">
-              <Tag color="blue">不做 AI，先把写作体验做好</Tag>
+              <Tag color="blue">在线简历编辑</Tag>
               <Typography.Title level={1}>
                 把“写简历”这件事
                 <br />
                 做成真正顺手的在线工作流。
               </Typography.Title>
               <Typography.Paragraph>
-                {productName} 现在先只做最重要的部分：创建草稿、结构化录入、实时纸面预览、本地自动保存和成品导出。
-                不先堆一大堆花功能，先把真实写简历时最常走的流程打磨顺。
+                {productName} 把模板选择、简历写作、实时预览、自动保存和导出收在同一条路径里，
+                让你从开始到成稿都能顺着完成。
               </Typography.Paragraph>
               <div className="paperjump-home__hero-badges">
                 {qualityHighlights.map((item) => (
@@ -198,13 +287,15 @@ export default function HomePage() {
               </div>
               <Space wrap size={14}>
                 <Button type="primary" size="large" icon={<RocketOutlined />} onClick={handleCreateDraft}>
-                  新建一份简历
+                  {currentUser ? '选模板开始' : '注册后选模板'}
                 </Button>
                 <Button
                   size="large"
-                  onClick={() => document.getElementById('recent-drafts')?.scrollIntoView({ behavior: 'smooth' })}
+                  onClick={() =>
+                    document.getElementById('recent-drafts')?.scrollIntoView({ behavior: 'smooth' })
+                  }
                 >
-                  查看本地工作区
+                  {currentUser ? '查看我的简历' : '查看已保存内容'}
                 </Button>
               </Space>
             </div>
@@ -213,8 +304,8 @@ export default function HomePage() {
               <div className="paperjump-home__hero-preview-stack">
                 <div className="paperjump-home__hero-panel">
                   <div className="paperjump-home__hero-panel-head">
-                    <span>当前产品形态</span>
-                    <strong>在线简历工作台</strong>
+                    <span>核心能力</span>
+                    <strong>在线简历编辑</strong>
                   </div>
                   <div className="paperjump-home__hero-panel-list">
                     {productMetrics.map((item) => (
@@ -227,8 +318,8 @@ export default function HomePage() {
                 </div>
                 <div className="paperjump-home__hero-panel paperjump-home__hero-panel--workflow">
                   <div className="paperjump-home__hero-panel-head">
-                    <span>开始路径</span>
-                    <strong>先写内容，再导出成品</strong>
+                    <span>使用方式</span>
+                    <strong>先选模板，再进入编辑器</strong>
                   </div>
                   <div className="paperjump-home__hero-flow">
                     {workflowSteps.map((item, index) => (
@@ -251,10 +342,8 @@ export default function HomePage() {
           <div className="paperjump-home__inner">
             <div className="paperjump-home__section-head">
               <div>
-                <Typography.Title level={2}>为什么这版已经适合开始</Typography.Title>
-                <Typography.Paragraph>
-                  先把写作主链路做完整，比一开始堆满复杂能力更重要。
-                </Typography.Paragraph>
+                <Typography.Title level={2}>核心能力</Typography.Title>
+                <Typography.Paragraph>从创建到导出，常用流程都已经放在一起。</Typography.Paragraph>
               </div>
             </div>
             <Row gutter={[20, 20]}>
@@ -277,25 +366,44 @@ export default function HomePage() {
           <div className="paperjump-home__inner">
             <div className="paperjump-home__section-head">
               <div>
-                <Typography.Title level={2}>本地工作区</Typography.Title>
-                <Typography.Paragraph>
-                  先在当前浏览器里创建和继续草稿，后面再把账号和多端同步能力接进来。
-                </Typography.Paragraph>
+                <Typography.Title level={2}>{workspaceSummary.title}</Typography.Title>
+                <Typography.Paragraph>{workspaceSummary.description}</Typography.Paragraph>
               </div>
               <Button type="primary" onClick={handleCreateDraft}>
-                新建空白草稿
+                {currentUser ? '先选模板' : '登录后选模板'}
               </Button>
             </div>
             <div className="paperjump-home__workspace-grid">
               <div className="paperjump-home__workspace-main">
-                {drafts.length === 0 ? (
+                {!currentUser ? (
                   <Card className="paperjump-home__empty-card">
                     <Empty
-                      description="还没有本地草稿，先新建一份简历试试。"
+                      description="登录后就能创建、保存和继续编辑自己的简历。"
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    >
+                      <Button
+                        type="primary"
+                        onClick={() =>
+                          openAuthModal(
+                            'register',
+                            buildTemplatePickerPath({ from: 'home', intent: 'create' }),
+                          )
+                        }
+                      >
+                        登录 / 注册
+                      </Button>
+                    </Empty>
+                  </Card>
+                ) : loading ? (
+                  <Card className="paperjump-home__empty-card" loading />
+                ) : drafts.length === 0 ? (
+                  <Card className="paperjump-home__empty-card">
+                    <Empty
+                      description="还没有简历，先新建一份开始写。"
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
                     >
                       <Button type="primary" onClick={handleCreateDraft}>
-                        立即开始写
+                        去选模板
                       </Button>
                     </Empty>
                   </Card>
@@ -312,8 +420,8 @@ export default function HomePage() {
                               </Typography.Text>
                             </div>
                             <div className="paperjump-home__draft-tags">
-                              <Tag bordered={false}>浏览器保存</Tag>
-                              <Tag bordered={false}>继续编辑</Tag>
+                              <Tag bordered={false}>{draft.templateName || '未选择模板'}</Tag>
+                              <Tag bordered={false}>{draft.status === 'published' ? '已发布' : '草稿中'}</Tag>
                             </div>
                             <div className="paperjump-home__draft-meta">
                               <span>最近更新</span>
@@ -324,7 +432,7 @@ export default function HomePage() {
                                 继续编辑
                               </Button>
                               <Button
-                                aria-label="删除草稿"
+                                aria-label="删除简历"
                                 icon={<DeleteOutlined />}
                                 onClick={() => handleDeleteDraft(draft.id)}
                               />
@@ -336,38 +444,25 @@ export default function HomePage() {
                   </Row>
                 )}
               </div>
-
-              <Card className="paperjump-home__account-card">
-                <div className="paperjump-home__account-head">
-                  <div>
-                    <Typography.Title level={3}>账号能力正在规划</Typography.Title>
-                    <Typography.Paragraph>
-                      当前先把本地写作流程打磨稳定，接下来会把账号和同步能力接进来。
-                    </Typography.Paragraph>
-                  </div>
-                  <Tag bordered={false}>下一阶段</Tag>
-                </div>
-
-                <div className="paperjump-home__account-list">
-                  {accountRoadmap.map((item) => (
-                    <div className="paperjump-home__account-item" key={item.title}>
-                      <span className="paperjump-home__account-icon">{item.icon}</span>
-                      <div>
-                        <strong>{item.title}</strong>
-                        <p>{item.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <Typography.Text className="paperjump-home__account-note">
-                  等账号体系接上之后，这里的本地工作区会自然升级成可登录、可同步、可恢复的云端工作区。
-                </Typography.Text>
-              </Card>
             </div>
           </div>
         </section>
       </main>
+
+      {!currentUser ? (
+        <AuthModal
+          open={authModalState.open}
+          mode={authModalState.mode}
+          redirect={authModalState.redirect}
+          onClose={closeAuthModal}
+          onModeChange={(mode) =>
+            setAuthModalState((state) => ({
+              ...state,
+              mode,
+            }))
+          }
+        />
+      ) : null}
     </div>
   );
 }

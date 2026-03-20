@@ -1,254 +1,268 @@
+import { useEffect, useState } from 'react';
+
 import {
   AppstoreOutlined,
-  CheckCircleOutlined,
-  CloudServerOutlined,
-  CompassOutlined,
-  DatabaseOutlined,
-  EditOutlined,
+  ArrowRightOutlined,
   ProfileOutlined,
-  RocketOutlined,
-  SafetyCertificateOutlined,
+  StarOutlined,
 } from '@ant-design/icons';
-import { history, useRequest } from '@umijs/max';
-import { Button, Col, Row, Space, Tag, Typography } from 'antd';
+import { history, useModel } from '@umijs/max';
+import { Button, Skeleton, message } from 'antd';
 
-import PageHero from '@/components/PageHero';
-import SurfaceCard from '@/components/SurfaceCard';
-import { querySystemInfo } from '@/services/system';
-
-const focusTracks = [
-  'Resume editor with structured sections and live preview',
-  'Template gallery with category filters and detail pages',
-  'Auth, membership, and publishing flows',
-  'Export, upload, and AI-assisted refinement hooks',
-];
-
-const milestones = [
-  'Extract shared page hero and surface card patterns',
-  'Replace dashboard placeholders with product-shaped guidance',
-  'Prepare the editor page for three-panel layout work',
-  'Keep backend health and local setup visible during iteration',
-];
-
-const metrics = [
-  {
-    label: 'Template track',
-    value: '12',
-    caption: 'initial curated templates planned',
-    icon: <AppstoreOutlined />,
-  },
-  {
-    label: 'Core modules',
-    value: '06',
-    caption: 'editing, templates, auth, publish, export, AI',
-    icon: <RocketOutlined />,
-  },
-  {
-    label: 'Local API',
-    value: 'Ready',
-    caption: 'replace with live health once services are up',
-    icon: <CloudServerOutlined />,
-    dark: true,
-  },
-  {
-    label: 'Resume drafts',
-    value: '00',
-    caption: 'the next milestone is first real resume record',
-    icon: <ProfileOutlined />,
-  },
-];
+import WorkspaceShell, { WorkspaceHeroStat } from '@/components/WorkspaceShell';
+import { createResume, queryResumes } from '@/services/resumes';
+import { queryTemplates, type ResumeTemplate } from '@/services/templates';
+import type { ResumeDraftSummary } from '@/types/resume';
+import { applyTemplateStarterContent, createEmptyDraft, formatDraftTime } from '@/utils/resumeDrafts';
+import { getErrorMessage } from '@/utils/request';
+import {
+  applyTemplateSettingsToDraft,
+  buildTemplatePickerPath,
+} from '@/utils/templateFlow';
 
 export default function DashboardPage() {
-  const { data, error, loading } = useRequest(querySystemInfo);
-  const statusTone = error ? 'status-strip status-strip--warning' : 'status-strip status-strip--success';
-  const backendValue = error
-    ? 'Awaiting local API'
-    : loading
-      ? 'Checking service heartbeat'
-      : 'Healthy local backend';
+  const { initialState } = useModel('@@initialState');
+  const currentUser = initialState?.currentUser;
+  const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
+  const [resumes, setResumes] = useState<ResumeDraftSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadWorkspaceData() {
+      setLoading(true);
+
+      try {
+        const [nextTemplates, nextResumes] = await Promise.all([
+          queryTemplates(),
+          queryResumes(),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        setTemplates(nextTemplates);
+        setResumes(nextResumes);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadWorkspaceData();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const sortedResumes = resumes
+    .slice()
+    .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
+  const latestResume = sortedResumes[0];
+  const favoriteCount = templates.filter((item) => item.favorited).length;
+  const favoriteTemplates = templates.filter((item) => item.favorited).slice(0, 3);
+
+  async function handleUseTemplate(template: ResumeTemplate) {
+    try {
+      const starterDraft = applyTemplateStarterContent(createEmptyDraft('new'), template.code);
+      const created = await createResume(applyTemplateSettingsToDraft(starterDraft, template));
+
+      history.push(`/maker/${created.id}`);
+    } catch (error) {
+      message.error(getErrorMessage(error, '暂时无法使用该模板，请稍后再试'));
+    }
+  }
 
   return (
-    <div className="page-shell">
-      <PageHero
-        eyebrow="Phase 01 / Local Build"
-        title="Your resume studio is ready for the first real workflow."
-        description="Frontend, backend, and infrastructure scaffolding are in place. This dashboard now acts like a product command sheet while we move into templates, resume editing, authentication, and publishing."
-        actions={(
-          <Space wrap size={12}>
-            <Button type="primary" size="large" onClick={() => history.push('/templates')}>
-              Browse template direction
-            </Button>
-            <Button size="large" onClick={() => history.push('/resumes')}>
-              Open resume workspace
-            </Button>
-          </Space>
-        )}
-        aside={(
-          <Space direction="vertical" size={18}>
+    <WorkspaceShell
+      activeNav="resumes"
+      heroMode="compact"
+      eyebrow="overview"
+      title={currentUser ? `${currentUser.displayName}，从这里继续你的下一步` : '概览'}
+      description="概览只保留继续编辑和模板入口，真正的列表管理放到简历库里。"
+      actions={(
+        <>
+          <Button onClick={() => history.push('/resumes')}>打开简历库</Button>
+          <Button
+            type="primary"
+            onClick={() => history.push(buildTemplatePickerPath({ from: 'resumes', intent: 'create' }))}
+          >
+            先选模板
+          </Button>
+        </>
+      )}
+      aside={(
+        <>
+          <WorkspaceHeroStat
+            label="全部简历"
+            value={String(resumes.length).padStart(2, '0')}
+            meta="账号下的全部内容"
+            tone="warm"
+          />
+          <WorkspaceHeroStat
+            label="收藏模板"
+            value={String(favoriteCount).padStart(2, '0')}
+            meta="常用版式会出现在右侧"
+            tone="cobalt"
+          />
+          <WorkspaceHeroStat
+            label="最近更新"
+            value={latestResume ? formatDraftTime(latestResume.updatedAt) : '暂无'}
+            meta={latestResume ? latestResume.title : '创建简历后会显示'}
+            tone="sage"
+          />
+        </>
+      )}
+    >
+      <div className="workspace-page-grid workspace-page-grid--overview">
+        <section className="workspace-panel">
+          <header className="workspace-panel__header">
             <div>
-              <Typography.Text style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                Current Track
-              </Typography.Text>
-              <Typography.Title level={3} style={{ margin: '8px 0 0', color: '#fff' }}>
-                Premium product shell first, feature depth next.
-              </Typography.Title>
+              <h2 className="workspace-panel__title">继续最近编辑</h2>
+              <p className="workspace-panel__meta">
+                {resumes.length ? '先从最近的一份接着写，完整列表再去简历库看。' : '先选一个模板开始，最近编辑会自动回到这里。'}
+              </p>
             </div>
-            <div className="hero-meta-list">
-              <div className="hero-meta-item">
-                <div className="hero-meta-icon">
-                  <CompassOutlined />
-                </div>
-                <div>
-                  <Typography.Text style={{ color: '#fff', fontWeight: 700 }}>
-                    Design direction locked
-                  </Typography.Text>
-                  <Typography.Paragraph style={{ margin: 0, color: 'rgba(255, 255, 255, 0.72)' }}>
-                    Editorial, warm, and product-led instead of generic admin chrome.
-                  </Typography.Paragraph>
-                </div>
-              </div>
-              <div className="hero-meta-item">
-                <div className="hero-meta-icon">
-                  <EditOutlined />
-                </div>
-                <div>
-                  <Typography.Text style={{ color: '#fff', fontWeight: 700 }}>
-                    Next implementation focus
-                  </Typography.Text>
-                  <Typography.Paragraph style={{ margin: 0, color: 'rgba(255, 255, 255, 0.72)' }}>
-                    Editor layout, auth entry, and resume data flow.
-                  </Typography.Paragraph>
-                </div>
-              </div>
-            </div>
-          </Space>
-        )}
-      />
+          </header>
 
-      <div className={statusTone}>
-        <div className="status-strip__item">
-          <span className="status-strip__label">Backend</span>
-          <span className="status-strip__value">{backendValue}</span>
-        </div>
-        <div className="status-strip__item">
-          <span className="status-strip__label">Workspace</span>
-          <span className="status-strip__value">Umi 4 + Ant Design 5 + Spring Boot 3</span>
-        </div>
-        <div className="status-strip__item">
-          <span className="status-strip__label">Immediate Goal</span>
-          <span className="status-strip__value">Ship the first usable resume flow</span>
-        </div>
+          <div className="workspace-panel__content">
+            {loading ? (
+              <div className="workspace-loading-list">
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <div className="workspace-loading-card" key={`overview-loading-${index}`}>
+                    <Skeleton.Avatar active size={56} shape="square" />
+                    <div className="workspace-loading-card__body">
+                      <Skeleton.Input active size="small" block />
+                      <Skeleton.Input active size="small" block />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : latestResume ? (
+              <div className="workspace-overview-stack">
+                <article className="workspace-feature-card">
+                  <div className="workspace-feature-card__copy">
+                    <span className="workspace-feature-card__eyebrow mono-label">LAST EDITED</span>
+                    <h3 className="workspace-feature-card__title">{latestResume.title}</h3>
+                    <p className="workspace-feature-card__meta">
+                      {latestResume.headline || latestResume.templateName || '继续补全这份简历的内容和版式。'}
+                    </p>
+                    <div className="workspace-feature-card__facts">
+                      <span>{latestResume.templateName || '未选择模板'}</span>
+                      <span>{latestResume.status === 'published' ? '已发布' : '草稿中'}</span>
+                      <span>{formatDraftTime(latestResume.updatedAt)}</span>
+                    </div>
+                  </div>
+
+                  <div className="workspace-feature-card__actions">
+                    <Button type="primary" onClick={() => history.push(`/maker/${latestResume.id}`)}>
+                      继续编辑
+                    </Button>
+                  </div>
+                </article>
+
+                {sortedResumes.length > 1 ? (
+                  <div className="workspace-mini-list">
+                    {sortedResumes.slice(1, 3).map((resume) => (
+                      <article className="workspace-mini-item" key={resume.id}>
+                        <div className="workspace-mini-item__copy">
+                          <span className="workspace-mini-item__eyebrow mono-label">
+                            {resume.templateName || '未选模板'}
+                          </span>
+                          <h3 className="workspace-mini-item__title">{resume.title}</h3>
+                          <p className="workspace-mini-item__meta">
+                            {resume.headline || '继续补内容'}
+                            <span className="workspace-mini-item__dot" />
+                            {formatDraftTime(resume.updatedAt)}
+                          </p>
+                        </div>
+
+                        <Button onClick={() => history.push(`/maker/${resume.id}`)}>
+                          打开 <ArrowRightOutlined />
+                        </Button>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="workspace-empty">
+                <div className="workspace-empty__icon">
+                  <ProfileOutlined />
+                </div>
+                <h3 className="workspace-empty__title">还没有简历</h3>
+                <p className="workspace-empty__description">先选一个模板开始，之后这里会保留你最近编辑的进度。</p>
+                <Button
+                  type="primary"
+                  onClick={() => history.push(buildTemplatePickerPath({ from: 'resumes', intent: 'create' }))}
+                >
+                  去选模板
+                </Button>
+              </div>
+            )}
+
+          </div>
+        </section>
+
+        <aside className="workspace-side-stack">
+          <section className="workspace-panel">
+            <header className="workspace-panel__header">
+              <div>
+                <h2 className="workspace-panel__title">常用模板</h2>
+                <p className="workspace-panel__meta">
+                  {favoriteTemplates.length ? '从收藏的版式直接开始会更快。' : '还没有收藏模板，先去模板中心挑一个。'}
+                </p>
+              </div>
+            </header>
+            <div className="workspace-panel__content">
+              {loading ? (
+                <div className="workspace-mini-list">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div className="workspace-mini-item workspace-mini-item--loading" key={`favorite-template-loading-${index}`}>
+                      <Skeleton active paragraph={{ rows: 1, width: '100%' }} title={{ width: '42%' }} />
+                    </div>
+                  ))}
+                </div>
+              ) : favoriteTemplates.length ? (
+                <div className="workspace-mini-list">
+                  {favoriteTemplates.map((template) => (
+                    <article className="workspace-mini-item" key={template.id}>
+                      <div className="workspace-mini-item__copy">
+                        <span className="workspace-mini-item__eyebrow mono-label">{template.mood}</span>
+                        <h3 className="workspace-mini-item__title">{template.name}</h3>
+                        <p className="workspace-mini-item__meta">
+                          <AppstoreOutlined /> {template.badge}
+                          <span className="workspace-mini-item__dot" />
+                          <StarOutlined /> 已收藏
+                        </p>
+                      </div>
+
+                      <Button size="middle" onClick={() => handleUseTemplate(template)}>
+                        使用
+                      </Button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="workspace-empty workspace-empty--compact">
+                  <div className="workspace-empty__icon">
+                    <StarOutlined />
+                  </div>
+                <h3 className="workspace-empty__title">还没有常用模板</h3>
+                <p className="workspace-empty__description">去模板中心收藏几套常用版式，这里会变成你的快速入口。</p>
+                <Button type="primary" onClick={() => history.push('/templates')}>
+                  打开模板中心
+                  </Button>
+                </div>
+              )}
+            </div>
+          </section>
+        </aside>
       </div>
-
-      <Row gutter={[20, 20]}>
-        {metrics.map((metric) => (
-          <Col xs={24} md={12} xl={6} key={metric.label}>
-            <SurfaceCard className={metric.dark ? 'metric-card metric-card--dark' : 'metric-card'}>
-              <span className="metric-card__eyebrow">{metric.label}</span>
-              <div className="metric-card__content">
-                <div>
-                  <div className="metric-card__value">{metric.value}</div>
-                  <div className="metric-card__caption">{metric.caption}</div>
-                </div>
-                <div className="metric-card__icon">{metric.icon}</div>
-              </div>
-            </SurfaceCard>
-          </Col>
-        ))}
-      </Row>
-
-      <Row gutter={[20, 20]}>
-        <Col xs={24} xl={14}>
-          <SurfaceCard title="Development Pipeline">
-            <div className="check-list">
-              {focusTracks.map((item) => (
-                <div className="check-list__item" key={item}>
-                  <CheckCircleOutlined className="check-list__icon" />
-                  <Typography.Text>{item}</Typography.Text>
-                </div>
-              ))}
-            </div>
-            <div style={{ height: 24 }} />
-            <Tag color="blue">Recommended move</Tag>
-            <Typography.Paragraph style={{ margin: '12px 0 0' }}>
-              Build the first end-to-end flow around one resume draft: create, enter editor,
-              preview, and save.
-            </Typography.Paragraph>
-          </SurfaceCard>
-        </Col>
-        <Col xs={24} xl={10}>
-          <SurfaceCard title="Backend Snapshot">
-            <div className="surface-list">
-              <div className="surface-list__row">
-                <span className="surface-list__label">Application</span>
-                <span className="surface-list__value mono-label">
-                  {data?.application ?? 'resume-platform-api'}
-                </span>
-              </div>
-              <div className="surface-list__row">
-                <span className="surface-list__label">Environment</span>
-                <span className="surface-list__value mono-label">
-                  {data?.environment ?? 'local'}
-                </span>
-              </div>
-              <div className="surface-list__row">
-                <span className="surface-list__label">Version</span>
-                <span className="surface-list__value mono-label">
-                  {data?.version ?? '0.0.1-SNAPSHOT'}
-                </span>
-              </div>
-              <div className="surface-list__row">
-                <span className="surface-list__label">Server time</span>
-                <span className="surface-list__value mono-label">
-                  {data?.serverTime ?? 'Waiting for backend...'}
-                </span>
-              </div>
-            </div>
-          </SurfaceCard>
-        </Col>
-      </Row>
-
-      <Row gutter={[20, 20]}>
-        <Col xs={24} xl={12}>
-          <SurfaceCard title="Milestones In Motion">
-            <div className="check-list">
-              {milestones.map((item) => (
-                <div className="check-list__item" key={item}>
-                  <SafetyCertificateOutlined className="check-list__icon" />
-                  <Typography.Text>{item}</Typography.Text>
-                </div>
-              ))}
-            </div>
-          </SurfaceCard>
-        </Col>
-        <Col xs={24} xl={12}>
-          <SurfaceCard title="Stack Surface">
-            <div className="surface-list">
-              <div className="surface-list__row">
-                <span className="surface-list__label">Frontend runtime</span>
-                <span className="surface-list__value">Umi 4 / React 18 / Ant Design 5</span>
-              </div>
-              <div className="surface-list__row">
-                <span className="surface-list__label">Backend runtime</span>
-                <span className="surface-list__value">Spring Boot 3.5 / Java 17</span>
-              </div>
-              <div className="surface-list__row">
-                <span className="surface-list__label">Infra baseline</span>
-                <span className="surface-list__value">
-                  <Space size={8}>
-                    <DatabaseOutlined />
-                    MySQL + Redis via Docker
-                  </Space>
-                </span>
-              </div>
-              <div className="surface-list__row">
-                <span className="surface-list__label">Direction</span>
-                <span className="surface-list__value">Premium career workspace</span>
-              </div>
-            </div>
-          </SurfaceCard>
-        </Col>
-      </Row>
-    </div>
+    </WorkspaceShell>
   );
 }

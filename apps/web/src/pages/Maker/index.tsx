@@ -1,8 +1,6 @@
 import type {
   CSSProperties,
-  ClipboardEvent as ReactClipboardEvent,
   DragEvent as ReactDragEvent,
-  KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
 } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -49,6 +47,7 @@ import {
   message,
 } from 'antd';
 
+import TemplatePaperPreview from '@/components/TemplatePaperPreview';
 import type {
   ResumeAccentTone,
   CustomSection,
@@ -63,13 +62,27 @@ import type {
   ResumeTitleStyle,
 } from '@/types/resume';
 import {
-  createDraftId,
+  queryResume,
+  updateResume,
+} from '@/services/resumes';
+import type { ResumeTemplate } from '@/services/templates';
+import {
+  queryTemplates,
+  setTemplateFavorite,
+} from '@/services/templates';
+import {
   createEmptyDraft,
   formatDraftTime,
   hydrateDraft,
-  loadDraft,
-  saveDraft,
 } from '@/utils/resumeDrafts';
+import { getErrorMessage } from '@/utils/request';
+import {
+  applyTemplateSettingsToDraft,
+  buildTemplatePickerPath,
+  getTemplateLayoutVariant,
+  getTemplateSectionClassName as getSharedTemplateSectionClassName,
+  sidebarTemplateSectionKeys,
+} from '@/utils/templateFlow';
 
 const { TextArea } = Input;
 const productName = '纸跃简历';
@@ -187,25 +200,14 @@ const titleStyleOptions: Array<{
   },
 ];
 
-const projectTechSuggestions = [
-  'React',
-  'TypeScript',
-  'Vue',
-  'Node.js',
-  'Spring Boot',
-  'MySQL',
-  'Redis',
-  'Ant Design',
-];
-
 const previewFontFamilyMap: Record<ResumeFontFamily, string> = {
   studio: "'Plus Jakarta Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif",
   system: "'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif",
   serif: "'Songti SC', 'STSong', 'Noto Serif SC', serif",
 };
 
-type StyleRecipeKey = 'campus' | 'steady' | 'one-page';
 type TemplateFilterKey = 'all' | 'campus' | 'general' | 'compact' | 'favorites';
+type PreviewLayoutVariant = 'default' | 'student' | 'project' | 'sidebar' | 'executive';
 
 type StyleRecipeSettings = Pick<
   ResumeDraft,
@@ -219,25 +221,13 @@ type StyleRecipeSettings = Pick<
   | 'sectionSpacing'
 >;
 
-type StyleRecipe = {
-  key: StyleRecipeKey;
-  title: string;
-  description: string;
-  summary: string;
-  audience: Exclude<TemplateFilterKey, 'all' | 'favorites'>;
-  spotlight: string;
-  icon: ReactNode;
-  settings: StyleRecipeSettings;
-};
-
 type ExportState = 'idle' | 'pdf';
 type WorkspaceMode = 'content' | 'style';
 type ChecklistLevel = 'ready' | 'attention' | 'missing';
-const TEMPLATE_FAVORITES_KEY = 'paperjump-maker-template-favorites';
 const templateFilterOptions: Array<{
   key: TemplateFilterKey;
   label: string;
-  match: (recipe: StyleRecipe, favorites: StyleRecipeKey[]) => boolean;
+  match: (recipe: ResumeTemplate, favorites: number[]) => boolean;
 }> = [
   {
     key: 'all',
@@ -247,82 +237,22 @@ const templateFilterOptions: Array<{
   {
     key: 'campus',
     label: '校招 / 实习',
-    match: (recipe) => recipe.audience === 'campus',
+    match: (recipe) => recipe.category === 'campus',
   },
   {
     key: 'general',
     label: '通用投递',
-    match: (recipe) => recipe.audience === 'general',
+    match: (recipe) => recipe.category === 'general',
   },
   {
     key: 'compact',
     label: '一页压缩',
-    match: (recipe) => recipe.audience === 'compact',
+    match: (recipe) => recipe.category === 'compact',
   },
   {
     key: 'favorites',
     label: '已收藏',
-    match: (recipe, favorites) => favorites.includes(recipe.key),
-  },
-];
-
-const styleRecipeOptions: StyleRecipe[] = [
-  {
-    key: 'campus',
-    title: '清爽校招',
-    description: '更像成熟校招成品，保留呼吸感但不会轻易拖成很多页。',
-    summary: '经典单栏 · 钴蓝 · 收紧纸面节奏',
-    audience: 'campus',
-    spotlight: '更适合第一份正式简历',
-    icon: <BookOutlined />,
-    settings: {
-      layoutPreset: 'classic',
-      accentTone: 'cobalt',
-      fontFamily: 'studio',
-      titleStyle: 'rule',
-      bodyFontSize: 13.2,
-      lineHeight: 1.52,
-      pagePadding: 24,
-      sectionSpacing: 17,
-    },
-  },
-  {
-    key: 'steady',
-    title: '稳妥通用',
-    description: '信息关系更紧凑，接近成熟投递文档的排版密度。',
-    summary: '经典单栏 · 墨黑 · 紧凑正文',
-    audience: 'general',
-    spotlight: '最接近成熟投递文档',
-    icon: <SolutionOutlined />,
-    settings: {
-      layoutPreset: 'classic',
-      accentTone: 'ink',
-      fontFamily: 'system',
-      titleStyle: 'minimal',
-      bodyFontSize: 12.8,
-      lineHeight: 1.44,
-      pagePadding: 23,
-      sectionSpacing: 15,
-    },
-  },
-  {
-    key: 'one-page',
-    title: '一页优先',
-    description: '主动压缩留白和条目间距，适合内容偏多的投递版本。',
-    summary: '紧凑模式 · 钴蓝 · 高信息密度',
-    audience: 'compact',
-    spotlight: '内容偏多时更稳',
-    icon: <ColumnWidthOutlined />,
-    settings: {
-      layoutPreset: 'compact',
-      accentTone: 'cobalt',
-      fontFamily: 'system',
-      titleStyle: 'rule',
-      bodyFontSize: 12.1,
-      lineHeight: 1.34,
-      pagePadding: 18,
-      sectionSpacing: 11,
-    },
+    match: (recipe, favorites) => favorites.includes(recipe.id),
   },
 ];
 
@@ -330,7 +260,7 @@ export default function MakerPage() {
   const params = useParams<{ resumeId: string }>();
   const routeResumeId = params.resumeId ?? 'new';
   const [draft, setDraft] = useState<ResumeDraft | null>(null);
-  const [saveState, setSaveState] = useState<'loading' | 'saving' | 'saved'>('loading');
+  const [saveState, setSaveState] = useState<'loading' | 'saving' | 'saved' | 'error'>('loading');
   const lastSerializedRef = useRef('');
   const historyRef = useRef<{ undo: string[]; redo: string[] }>({ undo: [], redo: [] });
   const navigationLockTimerRef = useRef<number | null>(null);
@@ -344,32 +274,76 @@ export default function MakerPage() {
   const [historyVersion, setHistoryVersion] = useState(0);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [templateFilter, setTemplateFilter] = useState<TemplateFilterKey>('all');
-  const [favoriteRecipeKeys, setFavoriteRecipeKeys] = useState<StyleRecipeKey[]>([]);
   const [confirmNewDraftOpen, setConfirmNewDraftOpen] = useState(false);
-  const [contentBoardExpanded, setContentBoardExpanded] = useState(false);
   const [draggingSectionKey, setDraggingSectionKey] = useState<ResumeSectionKey | null>(null);
   const [dragOverSectionKey, setDragOverSectionKey] = useState<ResumeSectionKey | null>(null);
+  const [styleRecipeOptions, setStyleRecipeOptions] = useState<ResumeTemplate[]>([]);
 
   useEffect(() => {
-    if (!routeResumeId || routeResumeId === 'new') {
-      history.replace(`/maker/${createDraftId()}`);
-      return;
+    let cancelled = false;
+
+    async function bootstrapTemplates() {
+      try {
+        const templates = await queryTemplates();
+        if (!cancelled) {
+          setStyleRecipeOptions(templates);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          message.error(getErrorMessage(error, '模板列表加载失败，请稍后再试'));
+        }
+      }
     }
 
-    const existingDraft = loadDraft(routeResumeId);
-    const nextDraft = existingDraft ?? createEmptyDraft(routeResumeId);
-    if (!existingDraft) {
-      saveDraft(nextDraft);
+    void bootstrapTemplates();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootstrapDraft() {
+      setSaveState('loading');
+
+      try {
+        if (!routeResumeId || routeResumeId === 'new') {
+          if (!cancelled) {
+            history.replace(buildTemplatePickerPath({ from: 'maker', intent: 'create' }));
+          }
+          return;
+        }
+
+        const nextDraft = await queryResume(routeResumeId);
+        if (cancelled) {
+          return;
+        }
+
+        const serialized = JSON.stringify(nextDraft);
+        lastSerializedRef.current = serialized;
+        historyRef.current = { undo: [], redo: [] };
+        setHistoryVersion(0);
+        setWorkspaceMode('content');
+        setActiveSectionId('section-profile');
+        setDraft(nextDraft);
+        setSaveState('saved');
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        message.error(getErrorMessage(error, '简历加载失败，请稍后再试'));
+        history.replace('/resumes');
+      }
     }
-    const serialized = JSON.stringify(nextDraft);
-    lastSerializedRef.current = serialized;
-    historyRef.current = { undo: [], redo: [] };
-    setHistoryVersion(0);
-    setWorkspaceMode('content');
-    setContentBoardExpanded(false);
-    setActiveSectionId('section-profile');
-    setDraft(nextDraft);
-    setSaveState('saved');
+
+    bootstrapDraft();
+
+    return () => {
+      cancelled = true;
+    };
   }, [routeResumeId]);
 
   useEffect(() => {
@@ -383,47 +357,30 @@ export default function MakerPage() {
     }
 
     setSaveState('saving');
-    const timer = window.setTimeout(() => {
-      saveDraft(draft);
-      lastSerializedRef.current = serialized;
-      setSaveState('saved');
-    }, 300);
+    const timer = window.setTimeout(async () => {
+      try {
+        const savedDraft = await updateResume(draft.id, draft);
+        setDraft((current) => {
+          if (!current || current.id !== draft.id) {
+            return current;
+          }
+
+          if (JSON.stringify(current) !== serialized) {
+            return current;
+          }
+
+          lastSerializedRef.current = JSON.stringify(savedDraft);
+          return savedDraft;
+        });
+        setSaveState('saved');
+      } catch (error) {
+        setSaveState('error');
+        message.error(getErrorMessage(error, '自动保存失败，请稍后再试'));
+      }
+    }, 400);
 
     return () => window.clearTimeout(timer);
   }, [draft]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    try {
-      const stored = window.localStorage.getItem(TEMPLATE_FAVORITES_KEY);
-      if (!stored) {
-        return;
-      }
-
-      const parsed = JSON.parse(stored);
-      if (!Array.isArray(parsed)) {
-        return;
-      }
-
-      const validKeys = parsed.filter((item): item is StyleRecipeKey =>
-        typeof item === 'string' && styleRecipeOptions.some((recipe) => recipe.key === item),
-      );
-      setFavoriteRecipeKeys(validKeys);
-    } catch {
-      window.localStorage.removeItem(TEMPLATE_FAVORITES_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.localStorage.setItem(TEMPLATE_FAVORITES_KEY, JSON.stringify(favoriteRecipeKeys));
-  }, [favoriteRecipeKeys]);
 
   useEffect(() => {
     const root = editorScrollRef.current;
@@ -533,7 +490,10 @@ export default function MakerPage() {
     '--resume-page-padding': `${draft.pagePadding}px`,
     '--resume-section-gap': `${draft.sectionSpacing}px`,
   } as CSSProperties;
-  const activeStyleRecipe = findActiveStyleRecipe(draft);
+  const activeStyleRecipe = findActiveStyleRecipe(draft, styleRecipeOptions);
+  const currentTemplateRecipe =
+    styleRecipeOptions.find((option) => option.id === draft.templateId) ?? activeStyleRecipe;
+  const previewLayoutVariant = getTemplateLayoutVariant(currentTemplateRecipe?.code);
   const isPdfExporting = exportState === 'pdf';
   const orderedSections = draft.sectionOrder.map((key) => builtInSectionMeta[key]);
   const currentLayoutOption = layoutOptions.find((option) => option.key === draft.layoutPreset);
@@ -546,22 +506,23 @@ export default function MakerPage() {
   const completion = getResumeCompletion(draft);
   const contentChecklist = buildContentChecklist(draft);
   const checklistSummary = summarizeChecklist(contentChecklist);
-  const recommendedTodos = contentChecklist.filter((item) => item.level !== 'ready').slice(0, 3);
-  const sidebarModeLabel = workspaceMode === 'style' ? '文档样式' : '内容导航';
   const sidebarMetaLabel =
     workspaceMode === 'style'
-      ? `${styleWorkspaceSections.length + 1} 个工作区`
-      : `${completion.completed}/${completion.total} 已完成`;
+      ? `${styleWorkspaceSections.length + 1} 组设置`
+      : `${completion.completed}/${completion.total}`;
+  const favoriteRecipeIds = styleRecipeOptions
+    .filter((item) => item.favorited)
+    .map((item) => item.id);
   const checklistById = Object.fromEntries(
     contentChecklist.map((item) => [item.id, item]),
   ) as Record<string, ContentChecklistItem>;
   const filteredStyleRecipes = styleRecipeOptions.filter((recipe) =>
     templateFilterOptions
       .find((option) => option.key === templateFilter)
-      ?.match(recipe, favoriteRecipeKeys),
+      ?.match(recipe, favoriteRecipeIds),
   );
   const layoutSummaryItems = [
-    activeStyleRecipe ? `方案：${activeStyleRecipe.title}` : '方案：已自定义',
+    activeStyleRecipe ? `方案：${activeStyleRecipe.name}` : '方案：已自定义',
     `密度：${currentLayoutOption?.title ?? '经典单栏'}`,
     `字体：${currentFontOption?.label ?? '工作室无衬线'}`,
     `标题：${currentTitleOption?.label ?? '细分隔线'}`,
@@ -592,6 +553,15 @@ export default function MakerPage() {
         (item.title.trim() || item.subtitle.trim() || item.time.trim() || item.content.trim()),
     )
     .map((item) => renderCustomPreviewSection(item));
+  const sidebarPreviewSections =
+    previewLayoutVariant === 'sidebar'
+      ? previewSections.filter((item) => sidebarTemplateSectionKeys.has(item.key))
+      : [];
+  const mainPreviewSections =
+    previewLayoutVariant === 'sidebar'
+      ? previewSections.filter((item) => !sidebarTemplateSectionKeys.has(item.key))
+      : previewSections;
+  const useSidebarPreview = previewLayoutVariant === 'sidebar' && sidebarPreviewSections.length > 0;
 
   function updateDraft(updater: (current: ResumeDraft) => ResumeDraft) {
     let didChange = false;
@@ -733,16 +703,8 @@ export default function MakerPage() {
     }));
   }
 
-  function applyStyleRecipe(recipeKey: StyleRecipeKey) {
-    const recipe = styleRecipeOptions.find((item) => item.key === recipeKey);
-    if (!recipe) {
-      return;
-    }
-
-    updateDraft((current) => ({
-      ...current,
-      ...recipe.settings,
-    }));
+  function applyStyleRecipe(recipe: ResumeTemplate) {
+    updateDraft((current) => applyTemplateSettingsToDraft(current, recipe));
   }
 
   function toggleSectionCollapse(id: string) {
@@ -967,30 +929,46 @@ export default function MakerPage() {
     }));
   }
 
-  function updateExperienceHighlights(id: string, highlights: string[]) {
+  function updateExperienceDescription(id: string, value: string) {
+    const highlights = splitLines(value).map(normalizeBulletLine).filter(Boolean);
     updateDraft((current) => ({
       ...current,
       experience: current.experience.map((item) =>
         item.id === id
           ? {
               ...item,
+              description: value,
               highlights,
-              description: stringifyHighlights(highlights),
             }
           : item,
       ),
     }));
   }
 
-  function updateProjectHighlights(id: string, highlights: string[]) {
+  function updateProjectDescription(id: string, value: string) {
+    const highlights = splitLines(value).map(normalizeBulletLine).filter(Boolean);
     updateDraft((current) => ({
       ...current,
       projects: current.projects.map((item) =>
         item.id === id
           ? {
               ...item,
+              description: value,
               highlights,
-              description: stringifyHighlights(highlights),
+            }
+          : item,
+      ),
+    }));
+  }
+
+  function updateProjectKeywords(id: string, value: string) {
+    updateDraft((current) => ({
+      ...current,
+      projects: current.projects.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              techStack: normalizeTagValues([value]),
             }
           : item,
       ),
@@ -1189,7 +1167,6 @@ export default function MakerPage() {
       historyRef.current = { undo: [], redo: [] };
       setHistoryVersion((current) => current + 1);
       setWorkspaceMode('content');
-      setContentBoardExpanded(false);
       setActiveSectionId('section-profile');
       setDraft(importedDraft);
       setExportDrawerOpen(false);
@@ -1201,20 +1178,20 @@ export default function MakerPage() {
     return Upload.LIST_IGNORE;
   }
 
-  function toggleFavoriteRecipe(key: StyleRecipeKey) {
-    setFavoriteRecipeKeys((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
-    );
+  async function toggleFavoriteRecipe(template: ResumeTemplate) {
+    try {
+      await setTemplateFavorite(template.id, !template.favorited);
+      const templates = await queryTemplates();
+      setStyleRecipeOptions(templates);
+      message.success(template.favorited ? '已取消收藏模板' : '已收藏模板');
+    } catch (error) {
+      message.error(getErrorMessage(error, '模板收藏失败，请稍后再试'));
+    }
   }
 
   function handleRequestNewDraft() {
-    if (!hasDraftContent(draft)) {
-      message.info('当前已经是空白草稿了，不需要再新建一份。');
-      return;
-    }
-
-    if (isStarterDraft(draft)) {
-      message.info('当前还是一份新的示例草稿，直接改写这一份就可以了。');
+    if (!hasDraftContent(draft) || isStarterDraft(draft)) {
+      history.push(buildTemplatePickerPath({ from: 'maker', intent: 'create' }));
       return;
     }
 
@@ -1223,7 +1200,7 @@ export default function MakerPage() {
 
   function handleCreateNewDraft() {
     setConfirmNewDraftOpen(false);
-    history.push(`/maker/${createDraftId()}`);
+    history.push(buildTemplatePickerPath({ from: 'maker', intent: 'create' }));
   }
 
   function renderStyleSections() {
@@ -1237,9 +1214,9 @@ export default function MakerPage() {
           extra={
             <div className="paperjump-maker__layout-toolbar">
               <Tag color={activeStyleRecipe ? 'processing' : 'default'}>
-                {activeStyleRecipe ? activeStyleRecipe.title : '已自定义'}
+                {activeStyleRecipe ? activeStyleRecipe.name : '已自定义'}
               </Tag>
-              <Tag>{favoriteRecipeKeys.length} 个收藏</Tag>
+              <Tag>{favoriteRecipeIds.length} 个收藏</Tag>
             </div>
           }
           {...getEditorSectionProps('section-layout-recipes')}
@@ -1258,7 +1235,7 @@ export default function MakerPage() {
             <div className="paperjump-maker__template-filter-row">
               {templateFilterOptions.map((option) => {
                 const count = styleRecipeOptions.filter((recipe) =>
-                  option.match(recipe, favoriteRecipeKeys),
+                  option.match(recipe, favoriteRecipeIds),
                 ).length;
 
                 return (
@@ -1281,11 +1258,11 @@ export default function MakerPage() {
 
             <div className="paperjump-maker__preset-grid">
               {filteredStyleRecipes.map((option) => {
-                const isActiveRecipe = activeStyleRecipe?.key === option.key;
+                const isActiveRecipe = activeStyleRecipe?.id === option.id;
 
                 return (
                   <div
-                    key={option.key}
+                    key={option.id}
                     className={
                       isActiveRecipe
                         ? 'paperjump-maker__preset-card paperjump-maker__preset-card--active'
@@ -1302,29 +1279,29 @@ export default function MakerPage() {
                       <button
                         type="button"
                         className={
-                          favoriteRecipeKeys.includes(option.key)
+                          favoriteRecipeIds.includes(option.id)
                             ? 'paperjump-maker__preset-favorite paperjump-maker__preset-favorite--active'
                             : 'paperjump-maker__preset-favorite'
                         }
-                        aria-label={favoriteRecipeKeys.includes(option.key) ? '取消收藏模板' : '收藏模板'}
+                        aria-label={favoriteRecipeIds.includes(option.id) ? '取消收藏模板' : '收藏模板'}
                         onClick={(event) => {
                           event.stopPropagation();
-                          toggleFavoriteRecipe(option.key);
+                          void toggleFavoriteRecipe(option);
                         }}
                       >
-                        {favoriteRecipeKeys.includes(option.key) ? <StarFilled /> : <StarOutlined />}
+                        {favoriteRecipeIds.includes(option.id) ? <StarFilled /> : <StarOutlined />}
                       </button>
                     </div>
                     <button
                       type="button"
                       className="paperjump-maker__preset-apply"
-                      onClick={() => applyStyleRecipe(option.key)}
+                      onClick={() => applyStyleRecipe(option)}
                     >
                       <TemplateRecipePreview recipe={option} />
                       <div className="paperjump-maker__preset-copy">
-                        <strong>{option.title}</strong>
+                        <strong>{option.name}</strong>
                         <span className="paperjump-maker__preset-description">{option.description}</span>
-                        <em className="paperjump-maker__preset-note">{option.summary}</em>
+                        <em className="paperjump-maker__preset-note">{buildTemplateSummary(option)}</em>
                       </div>
                     </button>
                   </div>
@@ -1552,13 +1529,21 @@ export default function MakerPage() {
     }
 
     const primaryTodo = contentChecklist.find((item) => item.level !== 'ready') ?? null;
-    const boardTitle = checklistSummary.missing || checklistSummary.attention ? '文档概览' : '文档状态';
+    const boardTitle = checklistSummary.missing || checklistSummary.attention ? '下一步' : '内容已就绪';
     const boardSummary = primaryTodo
-      ? `下一步优先补完${primaryTodo.title}，整份简历会更完整。`
-      : '内容已经比较完整，可以继续去样式模式微调或直接导出成品。';
+      ? `先补完${primaryTodo.title}，右侧纸面会更完整。`
+      : '可以继续微调样式，或者直接导出成品。';
 
     return (
-      <section className="paperjump-maker__content-board">
+      <section
+        className={[
+          'paperjump-maker__content-board',
+          'paperjump-maker__content-board--streamlined',
+          primaryTodo ? '' : 'paperjump-maker__content-board--complete',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <div className="paperjump-maker__content-board-head">
           <div className="paperjump-maker__content-board-copy-intro">
             <Typography.Title level={4}>{boardTitle}</Typography.Title>
@@ -1570,129 +1555,39 @@ export default function MakerPage() {
             <span className="paperjump-maker__content-board-pill">
               已完成 {checklistSummary.ready}/{contentChecklist.length}
             </span>
-            {primaryTodo ? (
-              <button
-                type="button"
-                className="paperjump-maker__content-board-pill paperjump-maker__content-board-pill--action"
-                onClick={() => scrollToSection(primaryTodo.id)}
-              >
-                下一步：{primaryTodo.title}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="paperjump-maker__content-board-toggle"
-              onClick={() => setContentBoardExpanded((current) => !current)}
-            >
-              {contentBoardExpanded ? '收起检查项' : '展开检查项'}
-            </button>
+            <span className="paperjump-maker__content-board-pill paperjump-maker__content-board-pill--muted">
+              缺失 {checklistSummary.missing}
+            </span>
           </div>
         </div>
 
-        {contentBoardExpanded ? (
-          <>
-            <div className="paperjump-maker__content-board-stats">
-              <div className="paperjump-maker__content-board-stat">
-                <strong>{checklistSummary.ready}</strong>
-                <span>已就绪模块</span>
-              </div>
-              <div className="paperjump-maker__content-board-stat">
-                <strong>{checklistSummary.attention}</strong>
-                <span>待补强模块</span>
-              </div>
-              <div className="paperjump-maker__content-board-stat">
-                <strong>{checklistSummary.missing}</strong>
-                <span>缺失模块</span>
-              </div>
-            </div>
-
-            {recommendedTodos.length ? (
-              <div className="paperjump-maker__content-board-actions">
-                {recommendedTodos.map((item, index) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="paperjump-maker__content-board-action"
-                    onClick={() => scrollToSection(item.id)}
-                  >
-                    <span>{`建议 ${index + 1}`}</span>
-                    <strong>{item.title}</strong>
-                    <em>{item.action}</em>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="paperjump-maker__content-board-actions paperjump-maker__content-board-actions--complete">
-                <button
-                  type="button"
-                  className="paperjump-maker__content-board-action paperjump-maker__content-board-action--complete"
-                  onClick={() => setExportDrawerOpen(true)}
-                >
-                  <span>当前状态</span>
-                  <strong>内容已经完整</strong>
-                  <em>打开文档操作，导出成品或备份草稿。</em>
-                </button>
-              </div>
-            )}
-
-            <div className="paperjump-maker__content-board-list">
-              {contentChecklist.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={[
-                    'paperjump-maker__content-board-item',
-                    `paperjump-maker__content-board-item--${item.level}`,
-                    activeSectionId === item.id ? 'paperjump-maker__content-board-item--active' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={() => scrollToSection(item.id)}
-                >
-                  <span
-                    className={[
-                      'paperjump-maker__content-board-status',
-                      `paperjump-maker__content-board-status--${item.level}`,
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                  >
-                    {getChecklistLevelLabel(item.level)}
-                  </span>
-                  <div className="paperjump-maker__content-board-copy">
-                    <strong>{item.title}</strong>
-                    <span>{item.note}</span>
-                  </div>
-                  <em>{item.action}</em>
-                </button>
-              ))}
-            </div>
-          </>
-        ) : primaryTodo ? (
-          <div className="paperjump-maker__content-board-inline">
+        <div className="paperjump-maker__content-board-inline">
+          {primaryTodo ? (
             <button
               type="button"
               className="paperjump-maker__content-board-inline-action"
               onClick={() => scrollToSection(primaryTodo.id)}
             >
-              <span>下一步</span>
-              <strong>{primaryTodo.title}</strong>
+              <div className="paperjump-maker__content-board-inline-copy">
+                <span>优先补强</span>
+                <strong>{primaryTodo.title}</strong>
+              </div>
               <em>{primaryTodo.action}</em>
             </button>
-          </div>
-        ) : (
-          <div className="paperjump-maker__content-board-inline">
+          ) : (
             <button
               type="button"
               className="paperjump-maker__content-board-inline-action paperjump-maker__content-board-inline-action--complete"
               onClick={() => setExportDrawerOpen(true)}
             >
-              <span>当前状态</span>
-              <strong>内容已经完整</strong>
-              <em>打开文档操作，导出成品或备份草稿。</em>
+              <div className="paperjump-maker__content-board-inline-copy">
+                <span>已就绪</span>
+                <strong>打开导出</strong>
+              </div>
+              <em>内容已经完整，可以直接生成 PDF。</em>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </section>
     );
   }
@@ -1953,10 +1848,6 @@ export default function MakerPage() {
               placeholder="你是谁、擅长什么、想找什么样的机会。可以用空行分段。"
               value={draft.summary}
               onChange={(value) => updateDraft((current) => ({ ...current, summary: value }))}
-              snippets={[
-                { label: '插入分段', snippet: '我希望继续在更复杂的业务中打磨产品与工程质量。'},
-                { label: '亮点句', snippet: '擅长把复杂信息整理成清晰、可交付的结果。'},
-              ]}
             />
           </Field>
         </EditorSection>
@@ -2025,10 +1916,6 @@ export default function MakerPage() {
                       placeholder="每行都可以是一条信息，例如 GPA、排名、核心课程、交换项目。"
                       value={item.description}
                       onChange={(value) => updateEducation(item.id, 'description', value)}
-                      snippets={[
-                        { label: '成绩/排名', snippet: 'GPA 3.8 / 4.0，专业前 10%' },
-                        { label: '课程/竞赛', snippet: '主修数据结构、操作系统、数据库系统' },
-                      ]}
                     />
                   </Field>
                 </div>
@@ -2045,7 +1932,7 @@ export default function MakerPage() {
           key={key}
           id="section-experience"
           title="工作经历"
-          description="每条经历要点都能单独编辑、排序和删除，写长经历时会轻松很多。"
+          description="按自然表达直接写就行，建议一行一条经历要点，右侧会自动排成列表。"
           hidden={workspaceMode !== 'content' || !draft.visibleSections.experience}
           {...getEditorSectionProps('section-experience')}
           extra={(
@@ -2090,14 +1977,11 @@ export default function MakerPage() {
                     />
                   </Field>
                   <Field label="经历描述" fullWidth>
-                    <BulletListEditor
-                      bullets={item.highlights}
-                      placeholder="写这一条经历里的一个具体动作或结果。"
-                      onChange={(value) => updateExperienceHighlights(item.id, value)}
-                      snippets={[
-                        { label: '结果句', snippet: '通过___，将___提升 / 降低___。' },
-                        { label: '协作句', snippet: '与___协作推进___，按期完成___。' },
-                      ]}
+                    <GuidedTextarea
+                      rows={6}
+                      placeholder="每行写一条内容，例如负责内容、推进过程、结果产出或服务对象。"
+                      value={item.description}
+                      onChange={(value) => updateExperienceDescription(item.id, value)}
                     />
                   </Field>
                 </div>
@@ -2114,7 +1998,7 @@ export default function MakerPage() {
           key={key}
           id="section-projects"
           title="项目经历"
-          description="把项目名、角色、链接、技术栈放进结构字段里，要点只写职责、方案和结果。"
+          description="项目不只面向技术岗位。把链接和关键词作为补充，项目描述直接写清楚做了什么。"
           hidden={workspaceMode !== 'content' || !draft.visibleSections.projects}
           {...getEditorSectionProps('section-projects')}
           extra={(
@@ -2160,29 +2044,25 @@ export default function MakerPage() {
                   </Field>
                   <Field label="项目链接">
                     <Input
-                      placeholder="例如：https://github.com/name/project"
+                      placeholder="可选，例如作品链接、案例地址、活动链接"
                       value={item.link}
                       onChange={(event) => updateProject(item.id, 'link', event.target.value)}
                     />
                   </Field>
-                  <Field label="技术栈" fullWidth>
-                    <TagValueEditor
-                      values={item.techStack}
-                      placeholder="输入后按回车，可直接粘贴多个技术关键词。"
-                      suggestions={projectTechSuggestions}
-                      onChange={(value) => updateProject(item.id, 'techStack', value)}
+                  <Field label="关键词 / 标签" fullWidth>
+                    <GuidedTextarea
+                      rows={3}
+                      placeholder="可选。每行一项，或用逗号分隔，例如：用户研究、活动策划、Figma、SQL"
+                      value={item.techStack.join('\n')}
+                      onChange={(value) => updateProjectKeywords(item.id, value)}
                     />
                   </Field>
-                  <Field label="项目要点" fullWidth>
-                    <BulletListEditor
-                      bullets={item.highlights}
-                      placeholder="写这个项目里的一个职责、方案或结果。"
-                      onChange={(value) => updateProjectHighlights(item.id, value)}
-                      snippets={[
-                        { label: '职责句', snippet: '负责___模块设计与实现，完成___。' },
-                        { label: '方案句', snippet: '设计___方案，解决___问题。' },
-                        { label: '结果句', snippet: '上线后让___提升 / 降低___。' },
-                      ]}
+                  <Field label="项目描述" fullWidth>
+                    <GuidedTextarea
+                      rows={6}
+                      placeholder="每行写一条内容，例如项目目标、你的职责、推进方式、结果或复盘。"
+                      value={item.description}
+                      onChange={(value) => updateProjectDescription(item.id, value)}
                     />
                   </Field>
                 </div>
@@ -2206,13 +2086,9 @@ export default function MakerPage() {
           <Field label="技能">
             <GuidedTextarea
               rows={6}
-              placeholder="例如：\nReact\nTypeScript\nNode.js\n或者：\nJavaScript：熟悉性能优化、工程化和组件设计"
+              placeholder="例如：\n用户研究\n数据分析\n跨团队协作\n或者：\n内容策划：能独立完成专题梳理和落地执行"
               value={draft.skills}
               onChange={(value) => updateDraft((current) => ({ ...current, skills: value }))}
-              snippets={[
-                { label: '新技能', snippet: '新技能' },
-                { label: '技能说明', snippet: '技能名：熟悉___，可独立完成___' },
-              ]}
             />
           </Field>
         </EditorSection>
@@ -2234,10 +2110,6 @@ export default function MakerPage() {
             placeholder="一行一条，例如：\n全国大学生软件设计大赛省奖\n英语六级 580"
             value={draft.awards}
             onChange={(value) => updateDraft((current) => ({ ...current, awards: value }))}
-            snippets={[
-              { label: '新条目', snippet: '新奖项 / 证书' },
-              { label: '语言能力', snippet: '英语六级 / 语言成绩' },
-            ]}
           />
         </Field>
       </EditorSection>
@@ -2250,6 +2122,7 @@ function renderCustomPreviewSection(item: CustomSection) {
       key={item.id}
       sectionId="section-custom"
       title={item.title || '自定义模块'}
+      className={getPreviewSectionClassName('awards', currentTemplateRecipe?.code, previewLayoutVariant)}
       active={activeSectionId === 'section-custom'}
       onClick={() => scrollToSection('section-custom')}
     >
@@ -2270,6 +2143,7 @@ function renderCustomPreviewSection(item: CustomSection) {
           key={key}
           sectionId="section-summary"
           title="个人简介"
+          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-summary'}
           onClick={() => scrollToSection('section-summary')}
         >
@@ -2284,6 +2158,7 @@ function renderCustomPreviewSection(item: CustomSection) {
           key={key}
           sectionId="section-education"
           title="教育经历"
+          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-education'}
           onClick={() => scrollToSection('section-education')}
         >
@@ -2306,6 +2181,7 @@ function renderCustomPreviewSection(item: CustomSection) {
           key={key}
           sectionId="section-experience"
           title="工作经历"
+          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-experience'}
           onClick={() => scrollToSection('section-experience')}
         >
@@ -2328,6 +2204,7 @@ function renderCustomPreviewSection(item: CustomSection) {
           key={key}
           sectionId="section-projects"
           title="项目经历"
+          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-projects'}
           onClick={() => scrollToSection('section-projects')}
         >
@@ -2351,6 +2228,7 @@ function renderCustomPreviewSection(item: CustomSection) {
           key={key}
           sectionId="section-skills"
           title="技能清单"
+          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-skills'}
           onClick={() => scrollToSection('section-skills')}
         >
@@ -2365,6 +2243,7 @@ function renderCustomPreviewSection(item: CustomSection) {
           key={key}
           sectionId="section-awards"
           title="奖项 / 补充信息"
+          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-awards'}
           onClick={() => scrollToSection('section-awards')}
         >
@@ -2384,10 +2263,17 @@ function renderCustomPreviewSection(item: CustomSection) {
             <div className="paperjump-maker__brand-mark">纸</div>
             <div>
               <strong>{productName}</strong>
-              <span>自由写、边看边排的在线简历编辑器</span>
+              <span>边写边排的专业简历编辑器</span>
             </div>
           </div>
           <div className="paperjump-maker__header-actions">
+            <Button
+              className="paperjump-maker__header-btn paperjump-maker__header-btn--quiet"
+              icon={<AppstoreOutlined />}
+              onClick={() => history.push('/resumes')}
+            >
+              返回简历库
+            </Button>
             <Button
               className="paperjump-maker__header-btn paperjump-maker__header-btn--quiet"
               icon={<HomeOutlined />}
@@ -2395,11 +2281,22 @@ function renderCustomPreviewSection(item: CustomSection) {
             >
               返回首页
             </Button>
+            <Button
+              className="paperjump-maker__header-btn paperjump-maker__header-btn--secondary"
+              icon={<ColumnWidthOutlined />}
+              onClick={() =>
+                history.push(
+                  buildTemplatePickerPath({ from: 'maker', intent: 'switch', resumeId: draft.id }),
+                )
+              }
+            >
+              更换模板
+            </Button>
             <Popconfirm
               open={confirmNewDraftOpen}
-              title="新建空白草稿？"
-              description="当前草稿会保留在最近草稿里，新草稿会从空白状态开始。"
-              okText="继续新建"
+              title="开始一份新的简历？"
+              description="当前这份会保留在简历库里，下一步会先去模板中心选择版式。"
+              okText="去选模板"
               cancelText="取消"
               onConfirm={handleCreateNewDraft}
               onCancel={() => setConfirmNewDraftOpen(false)}
@@ -2410,7 +2307,7 @@ function renderCustomPreviewSection(item: CustomSection) {
                 icon={<PlusOutlined />}
                 onClick={handleRequestNewDraft}
               >
-                新建草稿
+                新建简历
               </Button>
             </Popconfirm>
           </div>
@@ -2422,18 +2319,15 @@ function renderCustomPreviewSection(item: CustomSection) {
           <div className="paperjump-maker__sidebar-scroll">
             <div className="paperjump-maker__sidebar-head">
               <div className="paperjump-maker__sidebar-head-copy">
-                <Typography.Title level={4}>{sidebarModeLabel}</Typography.Title>
+                <Typography.Title level={4}>
+                  {workspaceMode === 'style' ? '样式设置' : '写作大纲'}
+                </Typography.Title>
                 <Typography.Text type="secondary">
-                  {workspaceMode === 'style' ? '模板、字体和节奏' : '模块排序、显示与扩展'}
+                  {workspaceMode === 'style' ? '模板、字体和页面节奏' : '按模块顺序编辑当前简历'}
                 </Typography.Text>
               </div>
               <div className="paperjump-maker__sidebar-head-meta">
-                <span className="paperjump-maker__sidebar-badge">
-                  {workspaceMode === 'style' ? '文档级' : '写作区'}
-                </span>
-                <span className="paperjump-maker__sidebar-badge paperjump-maker__sidebar-badge--muted">
-                  {sidebarMetaLabel}
-                </span>
+                <span className="paperjump-maker__sidebar-head-note">{sidebarMetaLabel}</span>
               </div>
             </div>
 
@@ -2445,7 +2339,9 @@ function renderCustomPreviewSection(item: CustomSection) {
               <span>
                 {saveState === 'saving'
                   ? '自动保存中'
-                  : `已保存 ${formatDraftTime(draft.updatedAt)}`}
+                  : saveState === 'error'
+                    ? '自动保存失败'
+                    : `已保存 ${formatDraftTime(draft.updatedAt)}`}
               </span>
             </div>
           </div>
@@ -2466,7 +2362,7 @@ function renderCustomPreviewSection(item: CustomSection) {
                   onClick={() => handleWorkspaceModeChange('content')}
                 >
                   <SolutionOutlined />
-                  <span>内容模式</span>
+                  <span>内容</span>
                 </button>
                 <button
                   type="button"
@@ -2479,21 +2375,20 @@ function renderCustomPreviewSection(item: CustomSection) {
                   onClick={() => handleWorkspaceModeChange('style')}
                 >
                   <BgColorsOutlined />
-                  <span>样式模式</span>
-                </button>
-                <button
-                  type="button"
-                  className="paperjump-maker__workspace-chip"
-                  onClick={() => setExportDrawerOpen(true)}
-                >
-                  <ExportOutlined />
-                  <span>导出成品</span>
+                  <span>样式</span>
                 </button>
               </div>
               <div className="paperjump-maker__editor-toolbar-meta">
                 <span className="paperjump-maker__editor-progress">
-                  完成度 {completion.completed}/{completion.total}
+                  {completion.completed}/{completion.total} 已完成
                 </span>
+                <Button
+                  className="paperjump-maker__editor-toolbar-btn paperjump-maker__editor-toolbar-btn--primary"
+                  icon={<ExportOutlined />}
+                  onClick={() => setExportDrawerOpen(true)}
+                >
+                  导出
+                </Button>
                 <Button
                   className="paperjump-maker__editor-toolbar-btn"
                   icon={<UndoOutlined />}
@@ -2603,10 +2498,6 @@ function renderCustomPreviewSection(item: CustomSection) {
                               onChange={(value) =>
                                 updateCustomSection(item.id, 'content', value)
                               }
-                              snippets={[
-                                { label: '插入要点', snippet: '- ' },
-                                { label: '行动结果', snippet: '- 负责___，最终带来___。' },
-                              ]}
                             />
                           </Field>
                         </div>
@@ -2633,10 +2524,9 @@ function renderCustomPreviewSection(item: CustomSection) {
                 </Typography.Text>
               </div>
               <div className="paperjump-maker__preview-meta">
-                <span className="paperjump-maker__preview-mode">
-                  {workspaceMode === 'style' ? '样式模式' : '内容模式'}
+                <span className="paperjump-maker__preview-focus">
+                  {workspaceMode === 'style' ? '样式预览' : activeSectionLabel}
                 </span>
-                <span className="paperjump-maker__preview-focus">定位：{activeSectionLabel}</span>
               </div>
             </div>
 
@@ -2647,12 +2537,21 @@ function renderCustomPreviewSection(item: CustomSection) {
                 `paperjump-maker__preview-paper--${draft.layoutPreset}`,
                 `paperjump-maker__preview-paper--accent-${draft.accentTone}`,
                 `paperjump-maker__preview-paper--title-${draft.titleStyle}`,
-              ].join(' ')}
+                `paperjump-maker__preview-paper--variant-${previewLayoutVariant}`,
+                currentTemplateRecipe?.code
+                  ? `paperjump-maker__preview-paper--template-${currentTemplateRecipe.code}`
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={previewPaperStyle}
             >
               <div>
                 <div
-                  className="paperjump-maker__resume-header"
+                  className={[
+                    'paperjump-maker__resume-header',
+                    `paperjump-maker__resume-header--${previewLayoutVariant}`,
+                  ].join(' ')}
                   data-resume-section="section-profile"
                   onClick={() => scrollToSection('section-profile')}
                 >
@@ -2681,10 +2580,27 @@ function renderCustomPreviewSection(item: CustomSection) {
                   </div>
                 </div>
 
-                <div className="paperjump-maker__resume-layout">
-                  {previewSections.map((item) => item.node)}
-                  {customPreviewSections}
-                </div>
+                {useSidebarPreview ? (
+                  <div className="paperjump-maker__resume-layout paperjump-maker__resume-layout--sidebar">
+                    <aside className="paperjump-maker__resume-sidebar">
+                      {sidebarPreviewSections.map((item) => item.node)}
+                    </aside>
+                    <div className="paperjump-maker__resume-main">
+                      {mainPreviewSections.map((item) => item.node)}
+                      {customPreviewSections}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={[
+                      'paperjump-maker__resume-layout',
+                      `paperjump-maker__resume-layout--${previewLayoutVariant}`,
+                    ].join(' ')}
+                  >
+                    {mainPreviewSections.map((item) => item.node)}
+                    {customPreviewSections}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2796,215 +2712,17 @@ function GuidedTextarea(props: {
   onChange: (value: string) => void;
   rows: number;
   placeholder?: string;
-  snippets?: Array<{ label: string; snippet: string }>;
 }) {
-  const { value, onChange, rows, placeholder, snippets = [] } = props;
+  const { value, onChange, rows, placeholder } = props;
 
   return (
     <div className="paperjump-maker__guided-textarea">
-      {snippets.length ? (
-        <div className="paperjump-maker__snippet-row">
-          {snippets.map((item) => (
-            <Button
-              key={item.label}
-              size="small"
-              type="text"
-              onClick={() => onChange(appendSnippet(value, item.snippet))}
-            >
-              {item.label}
-            </Button>
-          ))}
-        </div>
-      ) : null}
       <TextArea
         rows={rows}
         placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-    </div>
-  );
-}
-
-function TagValueEditor(props: {
-  values: string[];
-  onChange: (values: string[]) => void;
-  placeholder?: string;
-  suggestions?: string[];
-}) {
-  const { values, onChange, placeholder, suggestions = [] } = props;
-  const [draftValue, setDraftValue] = useState('');
-
-  function commitDraftValue(rawValue = draftValue) {
-    const trimmed = rawValue.trim();
-    if (!trimmed) {
-      setDraftValue('');
-      return;
-    }
-
-    onChange(appendTagValue(values, trimmed));
-    setDraftValue('');
-  }
-
-  function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Enter' || event.key === ',' || event.key === '，') {
-      event.preventDefault();
-      commitDraftValue();
-      return;
-    }
-
-    if (event.key === 'Backspace' && !draftValue.trim() && values.length) {
-      event.preventDefault();
-      onChange(values.slice(0, -1));
-    }
-  }
-
-  function handlePaste(event: ReactClipboardEvent<HTMLInputElement>) {
-    const pasted = event.clipboardData.getData('text');
-    const nextValues = normalizeTagValues([...values, pasted]);
-    if (nextValues.length <= values.length) {
-      return;
-    }
-
-    event.preventDefault();
-    onChange(nextValues);
-    setDraftValue('');
-  }
-
-  return (
-    <div className="paperjump-maker__tag-editor">
-      <div className="paperjump-maker__tag-editor-surface">
-        {values.map((value) => (
-          <span key={value} className="paperjump-maker__tag-chip">
-            <span>{value}</span>
-            <button
-              type="button"
-              className="paperjump-maker__tag-chip-remove"
-              aria-label={`移除 ${value}`}
-              onClick={() => onChange(values.filter((item) => item !== value))}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-        <input
-          className="paperjump-maker__tag-editor-input"
-          value={draftValue}
-          placeholder={values.length ? '继续输入并按回车' : placeholder}
-          onChange={(event) => setDraftValue(event.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={() => commitDraftValue()}
-          onPaste={handlePaste}
-        />
-      </div>
-      {suggestions.length ? (
-        <div className="paperjump-maker__snippet-row">
-          {suggestions.map((item) => (
-            <Button
-              key={item}
-              size="small"
-              type="text"
-              disabled={values.some((value) => value.toLowerCase() === item.toLowerCase())}
-              onClick={() => onChange(appendTagValue(values, item))}
-            >
-              {item}
-            </Button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function BulletListEditor(props: {
-  bullets: string[];
-  onChange: (bullets: string[]) => void;
-  placeholder?: string;
-  snippets?: Array<{ label: string; snippet: string }>;
-}) {
-  const { bullets, onChange, placeholder, snippets = [] } = props;
-  const [rows, setRows] = useState(() => createBulletEditorRows(bullets));
-
-  useEffect(() => {
-    setRows((currentRows) =>
-      areBulletEditorRowsSynced(currentRows, bullets)
-        ? currentRows
-        : syncBulletEditorRows(currentRows, bullets),
-    );
-  }, [bullets]);
-
-  function commitRows(nextRows: BulletEditorRow[]) {
-    setRows(nextRows);
-    onChange(serializeBulletEditorRows(nextRows));
-  }
-
-  return (
-    <div className="paperjump-maker__bullet-editor">
-      <div className="paperjump-maker__bullet-editor-toolbar">
-        {snippets.length ? (
-          <div className="paperjump-maker__snippet-row">
-            {snippets.map((item) => (
-              <Button
-                key={item.label}
-                size="small"
-                type="text"
-                onClick={() => commitRows(appendBulletEditorRow(rows, item.snippet))}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </div>
-        ) : null}
-        <Button size="small" icon={<PlusOutlined />} onClick={() => commitRows(appendBulletEditorRow(rows))}>
-          新增要点
-        </Button>
-      </div>
-
-      <div className="paperjump-maker__bullet-editor-list">
-        {rows.length ? (
-          rows.map((item, index) => (
-            <div className="paperjump-maker__bullet-editor-item" key={item.id}>
-              <span className="paperjump-maker__bullet-editor-mark">•</span>
-              <TextArea
-                autoSize={{ minRows: 2, maxRows: 4 }}
-                placeholder={placeholder}
-                value={item.value}
-                onChange={(event) =>
-                  commitRows(updateBulletEditorRow(rows, index, event.target.value))
-                }
-              />
-              <div className="paperjump-maker__bullet-editor-actions">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<UpOutlined />}
-                  disabled={index === 0}
-                  onClick={() => commitRows(moveBulletEditorRow(rows, index, -1))}
-                />
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<DownOutlined />}
-                  disabled={index === rows.length - 1}
-                  onClick={() => commitRows(moveBulletEditorRow(rows, index, 1))}
-                />
-                <Button
-                  danger
-                  type="text"
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  onClick={() => commitRows(removeBulletEditorRow(rows, index))}
-                />
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="paperjump-maker__bullet-editor-empty">
-            <strong>还没有要点</strong>
-            <span>点“新增要点”或上面的快捷句，先写出这一段里最关键的一条内容。</span>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -3055,16 +2773,16 @@ function RangeSetting(props: {
   );
 }
 
-function TemplateRecipePreview(props: { recipe: StyleRecipe }) {
+function TemplateRecipePreview(props: { recipe: ResumeTemplate }) {
   const { recipe } = props;
-  const accentColor = accentOptions.find((item) => item.key === recipe.settings.accentTone)?.color ?? '#2151ff';
+  const accentColor =
+    accentOptions.find((item) => item.key === recipe.settings.accentTone)?.color ?? '#2151ff';
 
   return (
     <div
       className={[
         'paperjump-maker__template-preview',
         `paperjump-maker__template-preview--${recipe.settings.layoutPreset}`,
-        `paperjump-maker__template-preview--title-${recipe.settings.titleStyle}`,
       ].join(' ')}
       style={
         {
@@ -3072,27 +2790,8 @@ function TemplateRecipePreview(props: { recipe: StyleRecipe }) {
         } as CSSProperties
       }
     >
-      <div className="paperjump-maker__template-preview-paper">
-        <div className="paperjump-maker__template-preview-header">
-          <span className="paperjump-maker__template-preview-name" />
-          <span className="paperjump-maker__template-preview-subline" />
-          <div className="paperjump-maker__template-preview-meta">
-            <span />
-            <span />
-            <span />
-          </div>
-        </div>
-        <div className="paperjump-maker__template-preview-section">
-          <span className="paperjump-maker__template-preview-title" />
-          <span className="paperjump-maker__template-preview-line" />
-          <span className="paperjump-maker__template-preview-line paperjump-maker__template-preview-line--short" />
-        </div>
-        <div className="paperjump-maker__template-preview-section">
-          <span className="paperjump-maker__template-preview-title" />
-          <span className="paperjump-maker__template-preview-line" />
-          <span className="paperjump-maker__template-preview-line" />
-        </div>
-      </div>
+      <TemplatePaperPreview template={recipe} mode="picker" />
+      <span className="paperjump-maker__template-preview-accent" />
     </div>
   );
 }
@@ -3285,15 +2984,17 @@ function ResumePreviewSection(props: {
   children: ReactNode;
   sectionId?: string;
   active?: boolean;
+  className?: string;
   onClick?: () => void;
 }) {
-  const { title, children, sectionId, active, onClick } = props;
+  const { title, children, sectionId, active, className, onClick } = props;
 
   return (
     <section
       className={[
         'paperjump-maker__resume-section',
         active ? 'paperjump-maker__resume-section--active' : '',
+        className,
       ]
         .filter(Boolean)
         .join(' ')}
@@ -3652,21 +3353,13 @@ function buildContentChecklist(draft: ResumeDraft): ContentChecklistItem[] {
             note: '还没有一句简介，纸面开头会显得空。',
             action: '去补简介',
           }
-        : summaryLength < 36
-          ? {
-              id: 'section-summary',
-              title: '个人简介',
-              level: 'attention',
-              note: '内容有点短，建议补上能力范围和目标岗位。',
-              action: '补强表达',
-            }
-          : {
-              id: 'section-summary',
-              title: '个人简介',
-              level: 'ready',
-              note: '简介长度合适，已经能起到概览作用。',
-              action: '已完成',
-            },
+        : {
+            id: 'section-summary',
+            title: '个人简介',
+            level: 'ready',
+            note: '已经补上简介，纸面开头不会再空着。',
+            action: '已完成',
+          },
     );
   }
 
@@ -3726,8 +3419,8 @@ function buildContentChecklist(draft: ResumeDraft): ContentChecklistItem[] {
               id: 'section-experience',
               title: '工作经历',
               level: 'attention',
-              note: '至少有一段经历还没有结果句，建议补成要点。',
-              action: '补结果句',
+              note: '至少有一段经历还没有写完整，建议补几行关键内容。',
+              action: '补充描述',
             },
     );
   }
@@ -3753,14 +3446,14 @@ function buildContentChecklist(draft: ResumeDraft): ContentChecklistItem[] {
               id: 'section-projects',
               title: '项目经历',
               level: 'ready',
-              note: '项目要点和技术栈都比较完整，阅读阻力很低。',
+              note: '项目描述和补充信息都比较完整，阅读阻力很低。',
               action: '已完成',
             }
           : {
               id: 'section-projects',
               title: '项目经历',
               level: 'attention',
-              note: '建议补足技术栈或项目要点，让项目页更专业。',
+              note: '建议补足项目描述、关键词或链接，让信息更完整。',
               action: '补强项目',
             },
     );
@@ -3855,18 +3548,6 @@ function summarizeChecklist(items: ContentChecklistItem[]) {
   );
 }
 
-function getChecklistLevelLabel(level: ChecklistLevel) {
-  if (level === 'ready') {
-    return '已完成';
-  }
-
-  if (level === 'attention') {
-    return '待补强';
-  }
-
-  return '缺失';
-}
-
 function splitLines(value: string) {
   return value
     .split('\n')
@@ -3912,108 +3593,35 @@ function normalizeTagValues(values: string[]) {
     });
 }
 
-function appendTagValue(values: string[], nextValue: string) {
-  return normalizeTagValues([...values, nextValue]);
-}
-
-type BulletEditorRow = {
-  id: string;
-  value: string;
-};
-
-let bulletEditorRowSeed = 0;
-
-function createBulletEditorRow(value = ''): BulletEditorRow {
-  bulletEditorRowSeed += 1;
-
-  return {
-    id: `bullet-row-${bulletEditorRowSeed}`,
-    value,
-  };
-}
-
-function createBulletEditorRows(lines: string[]) {
-  return normalizeBulletDraftLines(lines).map((value) => createBulletEditorRow(value));
-}
-
-function serializeBulletEditorRows(rows: BulletEditorRow[]) {
-  return rows.map((row) => row.value);
-}
-
-function areBulletEditorRowsSynced(rows: BulletEditorRow[], lines: string[]) {
-  const normalized = normalizeBulletDraftLines(lines);
-
-  return rows.length === normalized.length && rows.every((row, index) => row.value === normalized[index]);
-}
-
-function syncBulletEditorRows(currentRows: BulletEditorRow[], lines: string[]) {
-  const normalized = normalizeBulletDraftLines(lines);
-  const availableRows = currentRows.map((row) => ({ row, used: false }));
-
-  return normalized.map((value) => {
-    const matchedRow = availableRows.find((item) => !item.used && item.row.value === value);
-
-    if (matchedRow) {
-      matchedRow.used = true;
-      return {
-        ...matchedRow.row,
-        value,
-      };
-    }
-
-    return createBulletEditorRow(value);
-  });
-}
-
-function appendBulletEditorRow(rows: BulletEditorRow[], snippet = '') {
-  return [...rows, createBulletEditorRow(normalizeBulletLine(snippet))];
-}
-
-function updateBulletEditorRow(rows: BulletEditorRow[], index: number, value: string) {
-  if (!rows.length) {
-    return [createBulletEditorRow(value)];
-  }
-
-  return rows.map((row, currentIndex) =>
-    currentIndex === index
-      ? {
-          ...row,
-          value,
-        }
-      : row,
-  );
-}
-
-function moveBulletEditorRow(rows: BulletEditorRow[], index: number, direction: -1 | 1) {
-  if (!rows.length) {
-    return [];
-  }
-
-  const nextIndex = index + direction;
-  if (nextIndex < 0 || nextIndex >= rows.length) {
-    return rows;
-  }
-
-  const reordered = [...rows];
-  const [item] = reordered.splice(index, 1);
-  reordered.splice(nextIndex, 0, item);
-  return reordered;
-}
-
-function removeBulletEditorRow(rows: BulletEditorRow[], index: number) {
-  return rows.filter((_, currentIndex) => currentIndex !== index);
-}
-
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function findActiveStyleRecipe(draft: ResumeDraft) {
+function findActiveStyleRecipe(draft: ResumeDraft, recipes: ResumeTemplate[]) {
   return (
-    styleRecipeOptions.find((option) =>
+    recipes.find((option) =>
       styleRecipeSettingKeys.every((key) => draft[key] === option.settings[key]),
     ) ?? null
   );
+}
+
+function buildTemplateSummary(template: ResumeTemplate) {
+  const layoutLabel =
+    template.settings.layoutPreset === 'compact' ? '紧凑模式' : '经典单栏';
+  const accentLabel = accentOptions.find((item) => item.key === template.settings.accentTone)?.label ?? '钴蓝';
+  return `${layoutLabel} · ${accentLabel} · ${template.mood}`;
+}
+
+function getPreviewSectionClassName(
+  key: ResumeSectionKey,
+  templateCode: string | null | undefined,
+  previewLayoutVariant: PreviewLayoutVariant,
+) {
+  return getSharedTemplateSectionClassName({
+    key,
+    templateCode,
+    layoutVariant: previewLayoutVariant,
+  });
 }
 
 function ensureExternalHref(value: string) {
@@ -4041,7 +3649,7 @@ function renderProjectMeta(item: ProjectEntry) {
     <div className="paperjump-maker__timeline-meta-inline">
       {hasTechStack ? (
         <span className="paperjump-maker__timeline-meta-chip">
-          <span className="paperjump-maker__timeline-meta-label">技术栈</span>
+          <span className="paperjump-maker__timeline-meta-label">关键词</span>
           <span className="paperjump-maker__timeline-meta-text">{item.techStack.join(' / ')}</span>
         </span>
       ) : null}
@@ -4060,18 +3668,6 @@ function renderProjectMeta(item: ProjectEntry) {
       ) : null}
     </div>
   );
-}
-
-function appendSnippet(current: string, snippet: string) {
-  const base = current.trimEnd();
-  const addition = snippet.replace(/^\n+/, '').replace(/\n+$/, '');
-
-  if (!base) {
-    return addition;
-  }
-
-  const separator = addition.startsWith('-') || addition.startsWith('•') ? '\n' : '\n\n';
-  return `${base}${separator}${addition}`;
 }
 
 const styleRecipeSettingKeys: Array<keyof StyleRecipeSettings> = [
@@ -4308,7 +3904,7 @@ function getReadableExportError(error: unknown) {
     normalizedMessage.includes('loading chunk') ||
     normalizedMessage.includes('importing a module script failed')
   ) {
-    return 'PDF 导出依赖还没被当前页面加载到，重启前端开发服务后刷新页面再试。';
+    return 'PDF 导出组件加载失败，请刷新页面后再试一次。';
   }
 
   if (
@@ -4401,7 +3997,7 @@ function buildResumePlainText(draft: ResumeDraft) {
           [
             compactText([item.name, item.role], ' · '),
             compactText([item.startDate, item.endDate], ' - '),
-            item.techStack.length ? `技术栈：${item.techStack.join(' / ')}` : '',
+            item.techStack.length ? `关键词：${item.techStack.join(' / ')}` : '',
             item.link,
           ],
           ' | ',

@@ -4,6 +4,9 @@ export default defineConfig({
   npmClient: 'pnpm',
   esbuildMinifyIIFE: true,
   antd: {},
+  model: {},
+  access: {},
+  initialState: {},
   request: {},
   routes: [
     {
@@ -12,8 +15,38 @@ export default defineConfig({
       component: '@/pages/Home',
     },
     {
+      path: '/dashboard',
+      layout: false,
+      redirect: '/resumes',
+    },
+    {
+      path: '/templates',
+      layout: false,
+      wrappers: ['@/wrappers/AuthGuard'],
+      component: '@/pages/Templates',
+    },
+    {
+      path: '/resumes',
+      layout: false,
+      wrappers: ['@/wrappers/AuthGuard'],
+      component: '@/pages/Resumes',
+    },
+    {
+      path: '/maker/new',
+      layout: false,
+      wrappers: ['@/wrappers/AuthGuard'],
+      component: '@/pages/Maker',
+    },
+    {
       path: '/maker/:resumeId',
       layout: false,
+      wrappers: ['@/wrappers/AuthGuard'],
+      component: '@/pages/Maker',
+    },
+    {
+      path: '/editor/:resumeId',
+      layout: false,
+      wrappers: ['@/wrappers/AuthGuard'],
       component: '@/pages/Maker',
     },
     {

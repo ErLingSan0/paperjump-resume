@@ -80,6 +80,9 @@ export type CustomSection = {
 
 export type ResumeDraft = {
   id: string;
+  templateId: number | null;
+  status: string;
+  visibility: string;
   title: string;
   updatedAt: string;
   layoutPreset: ResumeLayoutPreset;
@@ -106,5 +109,9 @@ export type ResumeDraftSummary = {
   id: string;
   title: string;
   headline: string;
+  templateId: number | null;
+  templateName: string | null;
+  status: string;
+  visibility: string;
   updatedAt: string;
 };
