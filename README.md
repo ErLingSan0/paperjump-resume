@@ -99,3 +99,52 @@ The repository now includes a production-oriented Docker setup:
    docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml ps
    docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml logs -f
    ```
+
+## Automatic Deployment
+
+The repository includes a production deploy script and a GitHub Actions workflow:
+
+- [`infra/scripts/deploy-prod.sh`](/Users/zhufeng/Desktop/wh/infra/scripts/deploy-prod.sh): updates the server checkout, rebuilds the production stack, and waits for the site health check to pass
+- [`.github/workflows/deploy-prod.yml`](/Users/zhufeng/Desktop/wh/.github/workflows/deploy-prod.yml): triggers the production deploy on every push to `main` or by manual workflow dispatch
+
+### One-time server preparation
+
+1. Clone the repository onto the server and make sure `main` is the branch used for production.
+2. Create `infra/.env.prod` from [`.env.prod.example`](/Users/zhufeng/Desktop/wh/infra/.env.prod.example) and fill in the production passwords and origin.
+3. Verify the server can run `docker compose`.
+4. Verify the server checkout can pull from GitHub with SSH:
+
+   ```bash
+   ssh -T git@github.com
+   ```
+
+### GitHub repository settings
+
+Add these **Actions secrets** in the GitHub repository:
+
+- `PROD_HOST`: production server IP or hostname
+- `PROD_PORT`: optional SSH port, default is `22`
+- `PROD_USER`: SSH login user, for example `root`
+- `PROD_SSH_KEY`: the private key that GitHub Actions should use to SSH into the production server
+
+Add this **Actions variable** if your project directory on the server is not the default:
+
+- `PROD_PROJECT_DIR`: defaults to `/root/paperjump-resume`
+
+### How deployment runs
+
+1. Push code to `main`
+2. GitHub Actions opens an SSH session to the server
+3. The workflow resets the server checkout to `origin/main`
+4. The server runs [`deploy-prod.sh`](/Users/zhufeng/Desktop/wh/infra/scripts/deploy-prod.sh)
+5. The script rebuilds the containers and checks `http://127.0.0.1/api/system/info`
+
+### Manual production deploy
+
+You can still trigger a deploy manually on the server:
+
+```bash
+cd /root/paperjump-resume
+chmod +x infra/scripts/deploy-prod.sh
+./infra/scripts/deploy-prod.sh
+```
