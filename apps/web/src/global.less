@@ -3210,6 +3210,57 @@ h6,
   font-size: 16px;
 }
 
+.paperjump-home__hero-actions {
+  margin-bottom: 24px;
+}
+
+.paperjump-home__hero-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.paperjump-home__hero-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid rgba(16, 20, 24, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.paperjump-home__hero-step > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paperjump-home__hero-step strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.paperjump-home__hero-step small {
+  color: var(--ink-500);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.paperjump-home__hero-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: rgba(33, 81, 255, 0.08);
+  color: var(--cobalt-600);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 .paperjump-home__hero-badges {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3297,6 +3348,13 @@ h6,
   font-weight: 700;
 }
 
+.paperjump-home__hero-panel-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
 .paperjump-home__hero-panel-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3368,6 +3426,23 @@ h6,
 }
 
 .paperjump-home__hero-flow-body small {
+  color: var(--ink-500);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.paperjump-home__hero-draft-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.paperjump-home__hero-draft-copy strong {
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.paperjump-home__hero-draft-copy small {
   color: var(--ink-500);
   font-size: 13px;
   line-height: 1.6;
@@ -3618,6 +3693,45 @@ h6,
 
 .paperjump-home__workspace-main {
   min-width: 0;
+}
+
+.paperjump-home__setup-card .ant-card-body {
+  justify-content: space-between;
+}
+
+.paperjump-home__setup-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.paperjump-home__setup-compact strong {
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.paperjump-home__setup-compact small {
+  color: var(--ink-500);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.paperjump-home__setup-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.paperjump-home__setup-chips span {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(33, 81, 255, 0.08);
+  color: var(--cobalt-600);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .paperjump-auth-modal {
@@ -6991,7 +7105,9 @@ h6,
     font-size: 2.4rem;
   }
 
+  .paperjump-home__hero-steps,
   .paperjump-home__hero-badges,
+  .paperjump-home__hero-panel-actions,
   .paperjump-home__hero-panel-list {
     grid-template-columns: 1fr;
   }
