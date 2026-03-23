@@ -6,7 +6,7 @@ import { Button, Form, Input, Modal, Typography, message } from 'antd';
 import { login, queryCurrentUser, register } from '@/services/auth';
 import { getErrorMessage, getErrorStatus } from '@/utils/request';
 
-export type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register';
 
 type AuthModalProps = {
   open: boolean;

@@ -23,12 +23,11 @@ export default defineConfig({
     {
       path: '/dashboard',
       layout: false,
-      redirect: '/resumes',
+      redirect: '/',
     },
     {
       path: '/templates',
       layout: false,
-      wrappers: ['@/wrappers/AuthGuard'],
       component: '@/pages/Templates',
     },
     {

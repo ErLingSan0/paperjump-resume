@@ -10,6 +10,7 @@ coverage
 .playwright-cli
 .superdesign
 .umi-production
+output/
 
 apps/api/target
 apps/api/.mvn/wrapper/maven-wrapper.jar

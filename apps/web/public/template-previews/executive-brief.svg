@@ -2,22 +2,22 @@
   <rect width="900" height="1260" fill="#F5F4F1"/>
   <rect x="18" y="18" width="864" height="1224" fill="white"/>
   <rect x="18" y="18" width="864" height="328" fill="#EEF3FB"/>
-  <rect x="392" y="68" width="116" height="140" rx="10" fill="transparent"/>
+  <rect x="392" y="52" width="116" height="140" rx="10" fill="transparent"/>
   <image
     href="/template-avatars/pony-office.jpg"
     x="392"
-    y="68"
+    y="52"
     width="116"
     height="140"
     preserveAspectRatio="xMidYMid slice"
     clip-path="url(#executiveAvatarClip)"
   />
 
-  <text x="450" y="250" text-anchor="middle" fill="#2E62D4" font-size="52" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-weight="700">宋野</text>
+  <text x="450" y="270" text-anchor="middle" fill="#2E62D4" font-size="52" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-weight="700">宋野</text>
   <g fill="#20242C" font-size="15.5" font-family="'PingFang SC','Microsoft YaHei',sans-serif">
-    <text x="220" y="292" text-anchor="middle">地址：上海</text>
-    <text x="450" y="292" text-anchor="middle">电话：+86 13800138000</text>
-    <text x="680" y="292" text-anchor="middle">邮箱：songye@example.com</text>
+    <text x="220" y="312" text-anchor="middle">地址：上海</text>
+    <text x="450" y="312" text-anchor="middle">电话：+86 13800138000</text>
+    <text x="680" y="312" text-anchor="middle">邮箱：songye@example.com</text>
   </g>
 
   <g font-family="'PingFang SC','Microsoft YaHei',sans-serif">
@@ -48,7 +48,7 @@
   </g>
   <defs>
     <clipPath id="executiveAvatarClip">
-      <rect x="392" y="68" width="116" height="140" rx="10" />
+      <rect x="392" y="52" width="116" height="140" rx="10" />
     </clipPath>
   </defs>
 </svg>

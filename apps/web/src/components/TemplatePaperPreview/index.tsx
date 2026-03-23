@@ -1,16 +1,5 @@
 import type { ResumeTemplate } from '@/services/templates';
 
-const templatePreviewAssetMap: Record<string, string> = {
-  'campus-launch': '/template-previews/campus-launch.svg',
-  'internship-sprint': '/template-previews/internship-sprint.svg',
-  'steady-general': '/template-previews/steady-general.svg',
-  'project-story': '/template-previews/project-story.svg',
-  'design-showcase': '/template-previews/design-showcase.svg',
-  'one-page-priority': '/template-previews/one-page-priority.svg',
-  'data-focus': '/template-previews/data-focus.svg',
-  'executive-brief': '/template-previews/executive-brief.svg',
-};
-
 const templatePreviewAvatarMap: Record<
   string,
   {
@@ -25,10 +14,10 @@ const templatePreviewAvatarMap: Record<
 > = {
   'campus-launch': {
     src: '/template-avatars/cow-office.jpg',
-    left: '43.9%',
-    top: '6.5%',
+    left: '43.89%',
+    top: '6.51%',
     width: '12.22%',
-    height: '10.8%',
+    height: '10.79%',
     radius: '10px',
     objectPosition: 'center center',
   },
@@ -53,7 +42,7 @@ const templatePreviewAvatarMap: Record<
   'executive-brief': {
     src: '/template-avatars/pony-office.jpg',
     left: '43.56%',
-    top: '5.4%',
+    top: '4.13%',
     width: '12.89%',
     height: '11.11%',
     radius: '10px',
@@ -67,7 +56,7 @@ type TemplatePaperPreviewProps = {
 };
 
 function getTemplatePreviewSource(template: ResumeTemplate) {
-  return template.coverImageUrl || templatePreviewAssetMap[template.code] || null;
+  return template.coverImageUrl || `/template-previews/${template.code}.svg`;
 }
 
 export default function TemplatePaperPreview(props: TemplatePaperPreviewProps) {

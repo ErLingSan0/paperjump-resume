@@ -105,13 +105,28 @@ export type ResumeDraft = {
   customSections: CustomSection[];
 };
 
+export type ResumeProfileFactStarter = Pick<ProfileFact, 'label' | 'value'> & Partial<Pick<ProfileFact, 'id'>>;
+
+export type ResumeProfileStarter = Partial<Omit<ResumeProfile, 'facts'>> & {
+  facts?: ResumeProfileFactStarter[];
+};
+
+export type ResumeDraftStarterContent = {
+  profile?: ResumeProfileStarter;
+  summary?: string;
+  education?: Array<Omit<EducationEntry, 'id'>>;
+  experience?: Array<Omit<ExperienceEntry, 'id'>>;
+  projects?: Array<Omit<ProjectEntry, 'id'>>;
+  skills?: string;
+  awards?: string;
+  visibleSections?: Partial<ResumeSectionVisibility>;
+};
+
 export type ResumeDraftSummary = {
   id: string;
   title: string;
   headline: string;
-  templateId: number | null;
   templateName: string | null;
   status: string;
-  visibility: string;
   updatedAt: string;
 };

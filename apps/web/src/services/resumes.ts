@@ -7,10 +7,8 @@ type ResumeSummaryDto = {
   id: number;
   title: string;
   headline: string;
-  templateId: number | null;
   templateName: string | null;
   status: string;
-  visibility: string;
   updatedAt: string;
 };
 
@@ -18,10 +16,8 @@ type ResumeDetailDto = {
   id: number;
   title: string;
   templateId: number | null;
-  templateName: string | null;
   status: string;
   visibility: string;
-  createdAt: string;
   updatedAt: string;
   content: Record<string, unknown>;
 };
@@ -34,7 +30,7 @@ type ResumeSavePayload = {
   content: Record<string, unknown>;
 };
 
-export function buildResumeSavePayload(draft: ResumeDraft): ResumeSavePayload {
+function buildResumeSavePayload(draft: ResumeDraft): ResumeSavePayload {
   const {
     id: _id,
     updatedAt: _updatedAt,
@@ -54,7 +50,7 @@ export function buildResumeSavePayload(draft: ResumeDraft): ResumeSavePayload {
   };
 }
 
-export function mapResumeDetailToDraft(detail: ResumeDetailDto): ResumeDraft {
+function mapResumeDetailToDraft(detail: ResumeDetailDto): ResumeDraft {
   const hydrated = hydrateDraft(detail.content, String(detail.id));
 
   return {
@@ -77,10 +73,8 @@ export async function queryResumes() {
     id: String(item.id),
     title: item.title,
     headline: item.headline,
-    templateId: item.templateId,
     templateName: item.templateName,
     status: item.status,
-    visibility: item.visibility,
     updatedAt: item.updatedAt,
   }));
 }

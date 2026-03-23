@@ -80,10 +80,7 @@ import { getErrorMessage } from '@/utils/request';
 import {
   buildTemplatePickerPath,
   getTemplateLayoutVariant,
-  getTemplateSectionClassName as getSharedTemplateSectionClassName,
 } from '@/utils/templateFlow';
-import type { TemplateLayoutVariant as PreviewLayoutVariant } from '@/utils/templateFlow';
-import { isVisibleTemplateCode } from '@/utils/templateRegistry';
 
 const { TextArea } = Input;
 const productName = '纸跃简历';
@@ -399,7 +396,7 @@ export default function MakerPage() {
   } as CSSProperties;
   const currentTemplateRecipe =
     templateOptions.find((option) => option.id === draft.templateId) ?? null;
-  const previewLayoutVariant = getTemplateLayoutVariant(currentTemplateRecipe?.code);
+  const previewLayoutVariant = getTemplateLayoutVariant(currentTemplateRecipe);
   const isPdfExporting = exportState === 'pdf';
   const orderedSections = draft.sectionOrder.map((key) => builtInSectionMeta[key]);
   const canUndo = historyRef.current.undo.length > 0;
@@ -1937,7 +1934,6 @@ function renderCustomPreviewSection(item: CustomSection) {
       sectionId="section-custom"
       sectionKey="custom"
       title={item.title || '自定义模块'}
-      className={getPreviewSectionClassName('awards', currentTemplateRecipe?.code, previewLayoutVariant)}
       active={activeSectionId === 'section-custom'}
       onClick={() => scrollToSection('section-custom')}
     >
@@ -1975,7 +1971,6 @@ function renderCustomPreviewSection(item: CustomSection) {
           sectionId="section-summary"
           sectionKey={key}
           title={getPreviewSectionTitle(key)}
-          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-summary'}
           onClick={() => scrollToSection('section-summary')}
         >
@@ -1991,7 +1986,6 @@ function renderCustomPreviewSection(item: CustomSection) {
           sectionId="section-education"
           sectionKey={key}
           title={getPreviewSectionTitle(key)}
-          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-education'}
           onClick={() => scrollToSection('section-education')}
         >
@@ -2017,7 +2011,6 @@ function renderCustomPreviewSection(item: CustomSection) {
           sectionId="section-experience"
           sectionKey={key}
           title={getPreviewSectionTitle(key)}
-          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-experience'}
           onClick={() => scrollToSection('section-experience')}
         >
@@ -2041,7 +2034,6 @@ function renderCustomPreviewSection(item: CustomSection) {
           sectionId="section-projects"
           sectionKey={key}
           title={getPreviewSectionTitle(key)}
-          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-projects'}
           onClick={() => scrollToSection('section-projects')}
         >
@@ -2051,7 +2043,7 @@ function renderCustomPreviewSection(item: CustomSection) {
               title={item.name}
               subtitle={item.role}
               duration={joinDuration(item.startDate, item.endDate)}
-              meta={renderProjectMeta(item, currentTemplateRecipe?.code)}
+              meta={renderProjectMeta(item, currentTemplateRecipe)}
               content={renderBulletLines(item.highlights.length ? item.highlights : splitLines(item.description))}
             />
           ))}
@@ -2066,11 +2058,10 @@ function renderCustomPreviewSection(item: CustomSection) {
           sectionId="section-skills"
           sectionKey={key}
           title={getPreviewSectionTitle(key)}
-          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-skills'}
           onClick={() => scrollToSection('section-skills')}
         >
-          {renderSkillsPreview(draft.skills, currentTemplateRecipe?.code)}
+          {renderSkillsPreview(draft.skills, currentTemplateRecipe)}
         </ResumePreviewSection>
       );
     }
@@ -2082,7 +2073,6 @@ function renderCustomPreviewSection(item: CustomSection) {
           sectionId="section-awards"
           sectionKey={key}
           title={getPreviewSectionTitle(key)}
-          className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-awards'}
           onClick={() => scrollToSection('section-awards')}
         >
@@ -2736,10 +2726,9 @@ function ResumePreviewSection(props: {
   sectionId?: string;
   sectionKey?: ResumeSectionKey | 'custom';
   active?: boolean;
-  className?: string;
   onClick?: () => void;
 }) {
-  const { title, children, sectionId, sectionKey, active, className, onClick } = props;
+  const { title, children, sectionId, sectionKey, active, onClick } = props;
 
   return (
     <section
@@ -2747,7 +2736,6 @@ function ResumePreviewSection(props: {
         'paperjump-maker__resume-section',
         sectionKey ? `paperjump-maker__resume-section--kind-${sectionKey}` : '',
         active ? 'paperjump-maker__resume-section--active' : '',
-        className,
       ]
         .filter(Boolean)
         .join(' ')}
@@ -3336,13 +3324,6 @@ function normalizeBulletDraftLines(value: string[]) {
   return value.map((item) => normalizeBulletLine(item));
 }
 
-function stringifyHighlights(highlights: string[]) {
-  return highlights
-    .map((item) => normalizeBulletLine(item))
-    .filter(Boolean)
-    .join('\n');
-}
-
 function splitTagValues(value: string) {
   return value
     .split(/\r?\n|[,，、]|[|｜]|\s+\/\s+/)
@@ -3370,18 +3351,6 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function getPreviewSectionClassName(
-  key: ResumeSectionKey,
-  templateCode: string | null | undefined,
-  previewLayoutVariant: PreviewLayoutVariant,
-) {
-  return getSharedTemplateSectionClassName({
-    key,
-    templateCode,
-    layoutVariant: previewLayoutVariant,
-  });
-}
-
 function ensureExternalHref(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -3395,8 +3364,8 @@ function formatProjectLinkLabel(value: string) {
   return value.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '');
 }
 
-function renderProjectMeta(item: ProjectEntry, templateCode?: string | null) {
-  if (templateCode && isVisibleTemplateCode(templateCode)) {
+function renderProjectMeta(item: ProjectEntry, template?: Pick<ResumeTemplate, 'galleryVisible'> | null) {
+  if (template?.galleryVisible) {
     return null;
   }
 
@@ -3861,10 +3830,10 @@ function renderStructuredContent(value: string) {
   return <Typography.Paragraph>{normalizeBulletLine(value.trim())}</Typography.Paragraph>;
 }
 
-function renderSkillsPreview(value: string, templateCode?: string | null) {
+function renderSkillsPreview(value: string, template?: Pick<ResumeTemplate, 'code' | 'galleryVisible'> | null) {
   const lines = splitLines(value);
   const skillBlocks =
-    templateCode === 'campus-launch'
+    template?.code === 'campus-launch'
       ? lines
           .map((line) => line.split('｜').map((item) => item.trim()))
           .filter((parts) => parts.length >= 3)
@@ -3903,7 +3872,7 @@ function renderSkillsPreview(value: string, templateCode?: string | null) {
     );
   }
 
-  if (templateCode && isVisibleTemplateCode(templateCode)) {
+  if (template?.galleryVisible) {
     const groupedLines = lines
       .map((line) => {
         const match = line.match(/^([^｜:：]{1,20})[｜:：]\s*(.+)$/);
@@ -3981,20 +3950,6 @@ function moveItem<T extends { id: string }>(items: T[], id: string, direction: -
   const nextItems = [...items];
   const [target] = nextItems.splice(currentIndex, 1);
   nextItems.splice(nextIndex, 0, target);
-  return nextItems;
-}
-
-function moveValue<T>(items: T[], target: T, direction: -1 | 1) {
-  const currentIndex = items.findIndex((item) => item === target);
-  const nextIndex = currentIndex + direction;
-
-  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= items.length) {
-    return items;
-  }
-
-  const nextItems = [...items];
-  const [item] = nextItems.splice(currentIndex, 1);
-  nextItems.splice(nextIndex, 0, item);
   return nextItems;
 }
 

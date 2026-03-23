@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   AppstoreOutlined,
   LeftOutlined,
   StarOutlined,
 } from '@ant-design/icons';
-import { history, useLocation } from '@umijs/max';
+import { history, useLocation, useModel } from '@umijs/max';
 import { Button, Skeleton, message } from 'antd';
 
+import AuthModal from '@/components/AuthModal';
 import TemplatePaperPreview from '@/components/TemplatePaperPreview';
 import WorkspaceShell from '@/components/WorkspaceShell';
 import { createResume, queryResume, updateResume } from '@/services/resumes';
@@ -20,30 +21,90 @@ import {
   getTemplatePickerReturnPath,
   applyTemplateSettingsToDraft,
 } from '@/utils/templateFlow';
-import { isVisibleTemplateCode } from '@/utils/templateRegistry';
 
 export default function TemplatesPage() {
   const location = useLocation();
+  const { initialState } = useModel('@@initialState');
+  const currentUser = initialState?.currentUser;
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingTemplateId, setSubmittingTemplateId] = useState<number | null>(null);
+  const [authModalState, setAuthModalState] = useState<{
+    mode: 'login' | 'register';
+    open: boolean;
+    redirect: string;
+  }>({
+    mode: 'login',
+    open: false,
+    redirect: '/templates',
+  });
+  const autoUseRef = useRef<string | null>(null);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const resumeId = searchParams.get('resumeId');
   const from = searchParams.get('from');
+  const pendingTemplateId = searchParams.get('pendingTemplateId');
   const isTemplateSwitch = Boolean(resumeId);
   const backPath = getTemplatePickerReturnPath({ from, resumeId });
   const backLabel = getTemplatePickerBackLabel({ from, resumeId });
+  const currentPath = useMemo(
+    () => `${location.pathname}${location.search || ''}${location.hash || ''}`,
+    [location.hash, location.pathname, location.search],
+  );
 
   useEffect(() => {
     void loadTemplates();
   }, []);
+
+  useEffect(() => {
+    if (!currentUser || !pendingTemplateId || loading || submittingTemplateId !== null) {
+      return;
+    }
+
+    const matchedTemplate = templates.find((template) => String(template.id) === pendingTemplateId);
+
+    if (!matchedTemplate || autoUseRef.current === pendingTemplateId) {
+      return;
+    }
+
+    autoUseRef.current = pendingTemplateId;
+    history.replace(buildTemplateRedirect());
+    void handleUseTemplate(matchedTemplate);
+  }, [currentUser, loading, pendingTemplateId, submittingTemplateId, templates]);
+
+  function buildTemplateRedirect(nextPendingTemplateId?: number) {
+    const nextSearchParams = new URLSearchParams(location.search);
+
+    if (nextPendingTemplateId) {
+      nextSearchParams.set('pendingTemplateId', String(nextPendingTemplateId));
+    } else {
+      nextSearchParams.delete('pendingTemplateId');
+    }
+
+    const nextSearch = nextSearchParams.toString();
+    return `${location.pathname}${nextSearch ? `?${nextSearch}` : ''}${location.hash || ''}`;
+  }
+
+  function openAuthModal(mode: 'login' | 'register', redirect = currentPath) {
+    setAuthModalState({
+      open: true,
+      mode,
+      redirect,
+    });
+  }
+
+  function closeAuthModal() {
+    setAuthModalState((state) => ({
+      ...state,
+      open: false,
+    }));
+  }
 
   async function loadTemplates() {
     setLoading(true);
 
     try {
       const nextTemplates = await queryTemplates();
-      setTemplates(nextTemplates.filter((template) => isVisibleTemplateCode(template.code)));
+      setTemplates(nextTemplates.filter((template) => template.galleryVisible));
     } catch (error) {
       message.error(getErrorMessage(error, '模板列表加载失败，请稍后再试'));
     } finally {
@@ -52,6 +113,11 @@ export default function TemplatesPage() {
   }
 
   async function handleUseTemplate(template: ResumeTemplate) {
+    if (!currentUser) {
+      openAuthModal('register', buildTemplateRedirect(template.id));
+      return;
+    }
+
     setSubmittingTemplateId(template.id);
 
     try {
@@ -64,7 +130,7 @@ export default function TemplatesPage() {
         return;
       }
 
-      const starterDraft = applyTemplateStarterContent(createEmptyDraft('new'), template.code);
+      const starterDraft = applyTemplateStarterContent(createEmptyDraft('new'), template.starterContent);
       const created = await createResume(applyTemplateSettingsToDraft(starterDraft, template));
       history.push(`/maker/${created.id}`);
     } catch (error) {
@@ -75,6 +141,11 @@ export default function TemplatesPage() {
   }
 
   async function handleToggleFavorite(template: ResumeTemplate) {
+    if (!currentUser) {
+      openAuthModal('login', currentPath);
+      return;
+    }
+
     try {
       await setTemplateFavorite(template.id, !template.favorited);
       await loadTemplates();
@@ -91,8 +162,14 @@ export default function TemplatesPage() {
           <header className="workspace-panel__header workspace-panel__header--catalog">
             <div>
               <span className="workspace-panel__eyebrow mono-label">TEMPLATES</span>
-              <h1 className="workspace-panel__title">{isTemplateSwitch ? '更换模板' : '选择模板'}</h1>
-              <p className="workspace-panel__meta">先选一个正式模板，再进入编辑器继续写内容。</p>
+              <h1 className="workspace-panel__title">
+                {isTemplateSwitch ? '更换模板' : currentUser ? '选择模板' : '先浏览模板'}
+              </h1>
+              <p className="workspace-panel__meta">
+                {currentUser
+                  ? '先选一个正式模板，再进入编辑器继续写内容。'
+                  : '先把正式模板看清楚，再决定哪一种更适合你的这份简历。'}
+              </p>
             </div>
             <div className="workspace-panel__actions workspace-panel__actions--compact">
               <span className="workspace-inline-meta">{loading ? '载入中' : `${templates.length} 套正式模板`}</span>
@@ -124,11 +201,17 @@ export default function TemplatesPage() {
                         className={[
                           'workspace-template-tile__favorite',
                           'workspace-template-tile__favorite--overlay',
-                          template.favorited ? 'workspace-template-tile__favorite--active' : '',
+                          currentUser && template.favorited ? 'workspace-template-tile__favorite--active' : '',
                         ]
                           .filter(Boolean)
                           .join(' ')}
-                        aria-label={template.favorited ? '取消收藏模板' : '收藏模板'}
+                        aria-label={
+                          currentUser
+                            ? template.favorited
+                              ? '取消收藏模板'
+                              : '收藏模板'
+                            : '收藏模板'
+                        }
                         onClick={() => handleToggleFavorite(template)}
                       >
                         <StarOutlined />
@@ -169,6 +252,18 @@ export default function TemplatesPage() {
           </div>
         </section>
       </div>
+      <AuthModal
+        open={authModalState.open}
+        mode={authModalState.mode}
+        redirect={authModalState.redirect}
+        onClose={closeAuthModal}
+        onModeChange={(mode) =>
+          setAuthModalState((state) => ({
+            ...state,
+            mode,
+          }))
+        }
+      />
     </WorkspaceShell>
   );
 }

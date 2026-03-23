@@ -27,7 +27,6 @@ public class ResumeTemplateRepository {
             resultSet.getLong("id"),
             resultSet.getString("code"),
             resultSet.getString("name"),
-            resultSet.getString("category"),
             resultSet.getString("cover_image_url"),
             parseSchema(resultSet.getString("schema_json")),
             resultSet.getBoolean("favorited"),
@@ -42,7 +41,7 @@ public class ResumeTemplateRepository {
     public List<ResumeTemplate> findActiveTemplates(Long userId) {
         return jdbcTemplate.query(
                 """
-                        SELECT t.id, t.code, t.name, t.category, t.cover_image_url, t.schema_json, t.created_at, t.updated_at,
+                        SELECT t.id, t.code, t.name, t.cover_image_url, t.schema_json, t.created_at, t.updated_at,
                                CASE WHEN utf.id IS NULL THEN FALSE ELSE TRUE END AS favorited
                         FROM resume_template t
                         LEFT JOIN user_template_favorite utf
@@ -59,7 +58,7 @@ public class ResumeTemplateRepository {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(
                     """
-                            SELECT t.id, t.code, t.name, t.category, t.cover_image_url, t.schema_json, t.created_at, t.updated_at,
+                            SELECT t.id, t.code, t.name, t.cover_image_url, t.schema_json, t.created_at, t.updated_at,
                                    CASE WHEN utf.id IS NULL THEN FALSE ELSE TRUE END AS favorited
                             FROM resume_template t
                             LEFT JOIN user_template_favorite utf
@@ -106,8 +105,6 @@ public class ResumeTemplateRepository {
                     "",
                     "",
                     "",
-                    "",
-                    "default",
                     new TemplateStyleSettings("classic", "cobalt", "studio", "rule", 13.0, 1.46, 24, 16));
         }
     }

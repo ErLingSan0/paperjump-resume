@@ -6,8 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public record TemplateSchema(
         String description,
         String badge,
-        String mood,
         String spotlight,
-        String previewVariant,
         TemplateStyleSettings settings) {
 }

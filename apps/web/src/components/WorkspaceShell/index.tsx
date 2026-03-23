@@ -1,14 +1,15 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 
 import { LogoutOutlined, PlusOutlined } from '@ant-design/icons';
-import { history, useModel } from '@umijs/max';
+import { history, useLocation, useModel } from '@umijs/max';
 import { Button, Typography, message } from 'antd';
 
+import AuthModal from '@/components/AuthModal';
 import { logout } from '@/services/auth';
 import { getErrorMessage } from '@/utils/request';
 import { buildTemplatePickerPath } from '@/utils/templateFlow';
 
-type WorkspaceNavKey = 'resumes' | 'templates';
+type WorkspaceNavKey = 'overview' | 'resumes' | 'templates';
 
 type WorkspaceShellProps = {
   activeNav: WorkspaceNavKey;
@@ -21,22 +22,19 @@ type WorkspaceShellProps = {
   children: ReactNode;
 };
 
-type WorkspaceHeroStatProps = {
-  label: ReactNode;
-  value: ReactNode;
-  meta?: ReactNode;
-  tone?: 'cobalt' | 'sage' | 'warm';
-  wide?: boolean;
-};
-
 const navItems: Array<{
   key: WorkspaceNavKey;
   label: string;
   path: string;
 }> = [
   {
+    key: 'overview',
+    label: '概览',
+    path: '/',
+  },
+  {
     key: 'resumes',
-    label: '简历库',
+    label: '我的简历',
     path: '/resumes',
   },
   {
@@ -45,26 +43,6 @@ const navItems: Array<{
     path: '/templates',
   },
 ];
-
-export function WorkspaceHeroStat(props: WorkspaceHeroStatProps) {
-  const { label, value, meta, tone = 'warm', wide = false } = props;
-
-  return (
-    <article
-      className={[
-        'workspace-hero-stat',
-        `workspace-hero-stat--${tone}`,
-        wide ? 'workspace-hero-stat--wide' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      <span className="workspace-hero-stat__label">{label}</span>
-      <strong className="workspace-hero-stat__value">{value}</strong>
-      {meta ? <span className="workspace-hero-stat__meta">{meta}</span> : null}
-    </article>
-  );
-}
 
 export default function WorkspaceShell(props: WorkspaceShellProps) {
   const {
@@ -77,10 +55,19 @@ export default function WorkspaceShell(props: WorkspaceShellProps) {
     heroMode = 'default',
     children,
   } = props;
+  const location = useLocation();
   const { initialState, setInitialState } = useModel('@@initialState');
   const currentUser = initialState?.currentUser;
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const avatarText = (currentUser?.displayName || currentUser?.email || '纸').slice(0, 1).toUpperCase();
   const showHero = heroMode !== 'none';
+  const redirect = useMemo(
+    () => `${location.pathname}${location.search || ''}${location.hash || ''}`,
+    [location.hash, location.pathname, location.search],
+  );
+  const visibleNavItems = currentUser ? navItems : navItems.filter((item) => item.key !== 'resumes');
+  const createEntryFrom = activeNav === 'overview' ? 'home' : activeNav;
 
   async function handleLogout() {
     try {
@@ -113,7 +100,7 @@ export default function WorkspaceShell(props: WorkspaceShellProps) {
           </button>
 
           <nav className="workspace-shell__nav-links" aria-label="工作区导航">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <button
                 key={item.key}
                 type="button"
@@ -131,24 +118,43 @@ export default function WorkspaceShell(props: WorkspaceShellProps) {
           </nav>
 
           <div className="workspace-shell__nav-actions">
-            <div className="workspace-shell__user">
-              <span className="workspace-shell__avatar">{avatarText}</span>
-              <span className="workspace-shell__user-meta">
-                <strong>{currentUser?.displayName || '已登录'}</strong>
-                <small>{currentUser?.email || '当前账号'}</small>
-              </span>
-            </div>
-            <Button
-              type="primary"
-              size="large"
-              icon={<PlusOutlined />}
-              onClick={() => history.push(buildTemplatePickerPath({ from: activeNav, intent: 'create' }))}
-            >
-              新建简历
-            </Button>
-            <Button size="large" icon={<LogoutOutlined />} onClick={handleLogout}>
-              退出登录
-            </Button>
+            {currentUser ? (
+              <>
+                <div className="workspace-shell__user">
+                  <span className="workspace-shell__avatar">{avatarText}</span>
+                  <span className="workspace-shell__user-meta">
+                    <strong>{currentUser.displayName || '已登录'}</strong>
+                    <small>{currentUser.email || '当前账号'}</small>
+                  </span>
+                </div>
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<PlusOutlined />}
+                  onClick={() =>
+                    history.push(buildTemplatePickerPath({ from: createEntryFrom, intent: 'create' }))
+                  }
+                >
+                  新建简历
+                </Button>
+                <Button size="large" icon={<LogoutOutlined />} onClick={handleLogout}>
+                  退出登录
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={() => {
+                    setAuthModalMode('login');
+                    setAuthModalOpen(true);
+                  }}
+                >
+                  登录 / 注册
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -183,6 +189,16 @@ export default function WorkspaceShell(props: WorkspaceShellProps) {
           {children}
         </div>
       </main>
+
+      {!currentUser ? (
+        <AuthModal
+          open={authModalOpen}
+          mode={authModalMode}
+          redirect={redirect}
+          onClose={() => setAuthModalOpen(false)}
+          onModeChange={(nextMode) => setAuthModalMode(nextMode)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,16 +1,21 @@
 package com.wh.resumeplatform.dto;
 
+import java.util.List;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
 public record TemplateResponse(
         Long id,
         String code,
         String name,
-        String category,
         String coverImageUrl,
         String description,
         String badge,
-        String mood,
         String spotlight,
-        String previewVariant,
         TemplateStyleSettingsResponse settings,
+        String layoutVariant,
+        List<String> sectionOrder,
+        JsonNode starterContent,
+        boolean galleryVisible,
         boolean favorited) {
 }

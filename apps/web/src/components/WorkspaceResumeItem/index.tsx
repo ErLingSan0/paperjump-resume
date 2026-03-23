@@ -9,7 +9,6 @@ type WorkspaceResumeItemProps = {
   onOpen: (resumeId: string) => void;
   onDelete?: (resumeId: string) => void;
   primaryLabel?: string;
-  showDelete?: boolean;
 };
 
 export default function WorkspaceResumeItem(props: WorkspaceResumeItemProps) {
@@ -18,7 +17,6 @@ export default function WorkspaceResumeItem(props: WorkspaceResumeItemProps) {
     onOpen,
     onDelete,
     primaryLabel = '继续编辑',
-    showDelete = true,
   } = props;
   const statusLabel = resume.status === 'published' ? '已发布' : '草稿';
 
@@ -63,7 +61,7 @@ export default function WorkspaceResumeItem(props: WorkspaceResumeItemProps) {
           >
             {primaryLabel}
           </Button>
-          {showDelete && onDelete ? (
+          {onDelete ? (
             <Popconfirm
               title="确认删除这份简历？"
               okText="删除"

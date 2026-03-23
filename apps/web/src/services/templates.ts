@@ -2,11 +2,12 @@ import { request } from '@umijs/max';
 
 import type {
   ResumeAccentTone,
+  ResumeDraftStarterContent,
   ResumeFontFamily,
   ResumeLayoutPreset,
+  ResumeSectionKey,
   ResumeTitleStyle,
 } from '@/types/resume';
-import { getTemplateRegistryEntry, visibleTemplateCodes } from '@/utils/templateRegistry';
 
 export type TemplateStyleSettings = {
   layoutPreset: ResumeLayoutPreset;
@@ -19,18 +20,25 @@ export type TemplateStyleSettings = {
   sectionSpacing: number;
 };
 
+export type TemplateLayoutVariant =
+  | 'centered-blue'
+  | 'profile-purple'
+  | 'info-grid-blue'
+  | 'hero-band-blue';
+
 export type ResumeTemplate = {
   id: number;
   code: string;
   name: string;
-  category: 'campus' | 'general' | 'compact' | string;
   coverImageUrl: string | null;
   description: string;
   badge: string;
-  mood: string;
   spotlight: string;
-  previewVariant: 'default' | 'creative' | 'student' | string;
   settings: TemplateStyleSettings;
+  layoutVariant: TemplateLayoutVariant;
+  sectionOrder: ResumeSectionKey[];
+  starterContent: ResumeDraftStarterContent | null;
+  galleryVisible: boolean;
   favorited: boolean;
 };
 
@@ -39,44 +47,12 @@ export async function queryTemplates() {
     method: 'GET',
   });
 
-  return templates
-    .map((template) => {
-      const registryEntry = getTemplateRegistryEntry(template.code);
-      if (!registryEntry) {
-        return template;
-      }
-
-      return {
-        ...template,
-        name: registryEntry.name,
-        category: registryEntry.category,
-        coverImageUrl: registryEntry.coverImageUrl,
-        description: registryEntry.description,
-        badge: registryEntry.badge,
-        mood: registryEntry.mood,
-        spotlight: registryEntry.spotlight,
-        previewVariant: registryEntry.previewVariant,
-        settings: registryEntry.settings,
-      };
-    })
-    .sort((left, right) => {
-      const leftIndex = visibleTemplateCodes.indexOf(left.code as (typeof visibleTemplateCodes)[number]);
-      const rightIndex = visibleTemplateCodes.indexOf(right.code as (typeof visibleTemplateCodes)[number]);
-
-      if (leftIndex === -1 && rightIndex === -1) {
-        return 0;
-      }
-
-      if (leftIndex === -1) {
-        return 1;
-      }
-
-      if (rightIndex === -1) {
-        return -1;
-      }
-
-      return leftIndex - rightIndex;
-    });
+  return templates.map((template) => ({
+    ...template,
+    sectionOrder: Array.isArray(template.sectionOrder) ? template.sectionOrder : [],
+    starterContent: template.starterContent ?? null,
+    galleryVisible: Boolean(template.galleryVisible),
+  }));
 }
 
 export async function setTemplateFavorite(templateId: number, favorited: boolean) {

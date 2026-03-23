@@ -1,4 +1,4 @@
-import type { ResumeTemplate } from '@/services/templates';
+import type { ResumeTemplate, TemplateLayoutVariant } from '@/services/templates';
 import type {
   ResumeAccentTone,
   ResumeFontFamily,
@@ -6,7 +6,6 @@ import type {
   ResumeSectionKey,
   ResumeTitleStyle,
 } from '@/types/resume';
-import { getTemplateRegistryEntry, type TemplateLayoutVariant } from '@/utils/templateRegistry';
 
 type TemplatePickerSource = 'home' | 'resumes' | 'maker' | 'templates';
 type TemplatePickerIntent = 'create' | 'switch';
@@ -35,8 +34,8 @@ type TemplateDraftSurface = {
   sectionSpacing: number;
 };
 
-export function applyTemplateSectionOrder(templateCode: string, currentOrder: ResumeSectionKey[]) {
-  const preset = getTemplateRegistryEntry(templateCode)?.sectionOrder;
+export function applyTemplateSectionOrder(template: Pick<ResumeTemplate, 'sectionOrder'>, currentOrder: ResumeSectionKey[]) {
+  const preset = template.sectionOrder;
   if (!preset?.length) {
     return currentOrder;
   }
@@ -51,7 +50,7 @@ export function applyTemplateSettingsToDraft<T extends TemplateDraftSurface>(
   return {
     ...draft,
     templateId: template.id,
-    sectionOrder: applyTemplateSectionOrder(template.code, draft.sectionOrder),
+    sectionOrder: applyTemplateSectionOrder(template, draft.sectionOrder),
     ...template.settings,
   };
 }
@@ -88,23 +87,21 @@ export function getTemplatePickerReturnPath(options: TemplateBackTargetOptions) 
     return '/templates';
   }
 
-  return '/resumes';
+  return '/';
 }
 
-export function getTemplateLayoutVariant(templateCode?: string | null): TemplateLayoutVariant {
-  return getTemplateRegistryEntry(templateCode)?.layoutVariant ?? 'profile-purple';
-}
-
-export function getTemplateSectionClassName(props: {
-  key: ResumeSectionKey;
-  templateCode?: string | null;
-  layoutVariant: TemplateLayoutVariant;
-}) {
-  return '';
-}
-
-export function getTemplatePreviewSrc(template: Pick<ResumeTemplate, 'code' | 'coverImageUrl'>) {
-  return template.coverImageUrl || `/template-previews/${template.code}.svg`;
+export function getTemplateLayoutVariant(
+  template?: Pick<ResumeTemplate, 'layoutVariant'> | null,
+): TemplateLayoutVariant {
+  switch (template?.layoutVariant) {
+    case 'centered-blue':
+    case 'profile-purple':
+    case 'info-grid-blue':
+    case 'hero-band-blue':
+      return template.layoutVariant;
+    default:
+      return 'profile-purple';
+  }
 }
 
 export function getTemplatePickerBackLabel(options: TemplateBackTargetOptions) {
@@ -113,12 +110,12 @@ export function getTemplatePickerBackLabel(options: TemplateBackTargetOptions) {
   }
 
   if (options.from === 'home') {
-    return '返回首页';
+    return '返回概览';
   }
 
   if (options.from === 'resumes') {
     return '返回简历库';
   }
 
-  return '返回简历库';
+  return '返回概览';
 }
