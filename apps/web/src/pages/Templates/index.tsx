@@ -1,74 +1,38 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   AppstoreOutlined,
-  ArrowRightOutlined,
   LeftOutlined,
-  SearchOutlined,
   StarOutlined,
 } from '@ant-design/icons';
 import { history, useLocation } from '@umijs/max';
-import { Button, Input, Skeleton, message } from 'antd';
+import { Button, Skeleton, message } from 'antd';
 
 import TemplatePaperPreview from '@/components/TemplatePaperPreview';
 import WorkspaceShell from '@/components/WorkspaceShell';
 import { createResume, queryResume, updateResume } from '@/services/resumes';
 import type { ResumeTemplate } from '@/services/templates';
 import { queryTemplates, setTemplateFavorite } from '@/services/templates';
-import { applyTemplateStarterContent, createEmptyDraft } from '@/utils/resumeDrafts';
+import { createEmptyDraft, applyTemplateStarterContent } from '@/utils/resumeDrafts';
 import { getErrorMessage } from '@/utils/request';
 import {
-  applyTemplateSettingsToDraft,
   getTemplatePickerBackLabel,
   getTemplatePickerReturnPath,
+  applyTemplateSettingsToDraft,
 } from '@/utils/templateFlow';
-
-const categoryFilters = [
-  { key: 'all', label: '全部' },
-  { key: 'campus', label: '校招' },
-  { key: 'general', label: '通用' },
-  { key: 'compact', label: '紧凑' },
-  { key: 'favorite', label: '已收藏' },
-] as const;
-
-function getCategoryLabel(category: string) {
-  if (category === 'campus') {
-    return '校招';
-  }
-
-  if (category === 'general') {
-    return '通用';
-  }
-
-  if (category === 'compact') {
-    return '紧凑';
-  }
-
-  return category;
-}
+import { isVisibleTemplateCode } from '@/utils/templateRegistry';
 
 export default function TemplatesPage() {
   const location = useLocation();
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingTemplateId, setSubmittingTemplateId] = useState<number | null>(null);
-  const [filterKey, setFilterKey] = useState<(typeof categoryFilters)[number]['key']>('all');
-  const [keyword, setKeyword] = useState('');
-  const deferredKeyword = useDeferredValue(keyword);
-  const normalizedKeyword = deferredKeyword.trim().toLowerCase();
-  const favoriteCount = templates.filter((template) => template.favorited).length;
-  const compactCount = templates.filter((template) => template.category === 'compact').length;
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const resumeId = searchParams.get('resumeId');
   const from = searchParams.get('from');
   const isTemplateSwitch = Boolean(resumeId);
   const backPath = getTemplatePickerReturnPath({ from, resumeId });
   const backLabel = getTemplatePickerBackLabel({ from, resumeId });
-  const pageTitle = isTemplateSwitch ? '更换模板' : '先选一个模板';
-  const pageDescription = isTemplateSwitch
-    ? '会保留当前内容，只替换模板风格、模块顺序和纸面节奏。'
-    : '所有新建入口都会先来到这里，挑好模板后再进入编辑器。';
-  const actionLabel = isTemplateSwitch ? '应用到当前简历' : '从这个模板开始';
 
   useEffect(() => {
     void loadTemplates();
@@ -79,39 +43,13 @@ export default function TemplatesPage() {
 
     try {
       const nextTemplates = await queryTemplates();
-      setTemplates(nextTemplates);
+      setTemplates(nextTemplates.filter((template) => isVisibleTemplateCode(template.code)));
     } catch (error) {
       message.error(getErrorMessage(error, '模板列表加载失败，请稍后再试'));
     } finally {
       setLoading(false);
     }
   }
-
-  const filteredTemplates = templates.filter((template) => {
-    if (filterKey === 'favorite' && !template.favorited) {
-      return false;
-    }
-
-    if (filterKey !== 'all' && filterKey !== 'favorite' && template.category !== filterKey) {
-      return false;
-    }
-
-    if (!normalizedKeyword) {
-      return true;
-    }
-
-    const searchable = [
-      template.name,
-      template.description,
-      template.spotlight,
-      template.mood,
-      template.badge,
-    ]
-      .join(' ')
-      .toLowerCase();
-
-    return searchable.includes(normalizedKeyword);
-  });
 
   async function handleUseTemplate(template: ResumeTemplate) {
     setSubmittingTemplateId(template.id);
@@ -146,43 +84,18 @@ export default function TemplatesPage() {
     }
   }
 
-  function getFilterCount(filterKeyValue: (typeof categoryFilters)[number]['key']) {
-    if (filterKeyValue === 'all') {
-      return templates.length;
-    }
-
-    if (filterKeyValue === 'favorite') {
-      return favoriteCount;
-    }
-
-    return templates.filter((template) => template.category === filterKeyValue).length;
-  }
-
   return (
-    <WorkspaceShell activeNav="templates" heroMode="none" title="模板中心">
+    <WorkspaceShell activeNav="templates" heroMode="none" title="模板库">
       <div className="workspace-page-stack">
         <section className="workspace-panel workspace-panel--catalog">
           <header className="workspace-panel__header workspace-panel__header--catalog">
             <div>
               <span className="workspace-panel__eyebrow mono-label">TEMPLATES</span>
-              <h1 className="workspace-panel__title">{pageTitle}</h1>
-              <p className="workspace-panel__meta">{pageDescription}</p>
+              <h1 className="workspace-panel__title">{isTemplateSwitch ? '更换模板' : '选择模板'}</h1>
+              <p className="workspace-panel__meta">先选一个正式模板，再进入编辑器继续写内容。</p>
             </div>
-            <div className="workspace-panel__actions">
-              <div className="workspace-catalog-metrics" aria-label="模板概览">
-                <span className="workspace-catalog-metric">
-                  <strong>{templates.length}</strong>
-                  <small>全部</small>
-                </span>
-                <span className="workspace-catalog-metric">
-                  <strong>{favoriteCount}</strong>
-                  <small>收藏</small>
-                </span>
-                <span className="workspace-catalog-metric">
-                  <strong>{compactCount}</strong>
-                  <small>紧凑</small>
-                </span>
-              </div>
+            <div className="workspace-panel__actions workspace-panel__actions--compact">
+              <span className="workspace-inline-meta">{loading ? '载入中' : `${templates.length} 套正式模板`}</span>
               <Button icon={<LeftOutlined />} onClick={() => history.push(backPath)}>
                 {backLabel}
               </Button>
@@ -190,99 +103,54 @@ export default function TemplatesPage() {
           </header>
 
           <div className="workspace-panel__content workspace-panel__content--catalog">
-            <div className="workspace-toolbar workspace-toolbar--catalog">
-              <div className="workspace-filter-pills">
-                {categoryFilters.map((filter) => (
-                  <button
-                    key={filter.key}
-                    type="button"
-                    className={[
-                      'workspace-filter-pill',
-                      filterKey === filter.key ? 'workspace-filter-pill--active' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => setFilterKey(filter.key)}
-                  >
-                    <span>{filter.label}</span>
-                    <span className="workspace-filter-pill__count">{getFilterCount(filter.key)}</span>
-                  </button>
-                ))}
-              </div>
-
-              <Input
-                allowClear
-                value={keyword}
-                className="workspace-search workspace-search--catalog"
-                prefix={<SearchOutlined />}
-                placeholder="搜索模板名称、岗位方向或排版风格"
-                onChange={(event) => setKeyword(event.target.value)}
-              />
-            </div>
-
             {loading ? (
-              <div className="workspace-template-gallery">
-                {Array.from({ length: 8 }).map((_, index) => (
+              <div className="workspace-template-gallery workspace-template-gallery--focused">
+                {Array.from({ length: 4 }).map((_, index) => (
                   <div className="workspace-template-tile workspace-template-tile--loading" key={`template-loading-${index}`}>
-                    <Skeleton.Image active style={{ width: '100%', height: 300 }} />
+                    <Skeleton.Image active style={{ width: '100%', height: 320 }} />
                     <div className="workspace-template-tile__body">
-                      <Skeleton active paragraph={{ rows: 1 }} title={{ width: '56%' }} />
+                      <Skeleton active paragraph={{ rows: 2 }} title={{ width: '54%' }} />
                     </div>
                   </div>
                 ))}
               </div>
-            ) : filteredTemplates.length ? (
-              <div className="workspace-template-gallery">
-                {filteredTemplates.map((template) => (
-                  <article className="workspace-template-tile" key={template.id}>
-                    <div className="workspace-template-tile__preview">
+            ) : templates.length ? (
+              <div className="workspace-template-gallery workspace-template-gallery--focused">
+                {templates.map((template) => (
+                  <article className="workspace-template-tile workspace-template-tile--focused" key={template.id}>
+                    <div className="workspace-template-tile__preview workspace-template-tile__preview--cover">
+                      <button
+                        type="button"
+                        className={[
+                          'workspace-template-tile__favorite',
+                          'workspace-template-tile__favorite--overlay',
+                          template.favorited ? 'workspace-template-tile__favorite--active' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        aria-label={template.favorited ? '取消收藏模板' : '收藏模板'}
+                        onClick={() => handleToggleFavorite(template)}
+                      >
+                        <StarOutlined />
+                      </button>
                       <TemplatePaperPreview template={template} />
                     </div>
 
                     <div className="workspace-template-tile__body">
-                      <div className="workspace-template-tile__header">
-                        <div>
-                          <span className="workspace-template-tile__mood mono-label">{template.mood}</span>
-                          <h3 className="workspace-template-tile__title">{template.name}</h3>
-                        </div>
-                        <button
-                          type="button"
-                          className={[
-                            'workspace-template-tile__favorite',
-                            template.favorited ? 'workspace-template-tile__favorite--active' : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' ')}
-                          aria-label={template.favorited ? '取消收藏模板' : '收藏模板'}
-                          onClick={() => handleToggleFavorite(template)}
-                        >
-                          <StarOutlined />
-                        </button>
-                      </div>
-
-                      <div className="workspace-template-tile__badges">
-                        <span className="workspace-template-tile__badge workspace-template-tile__badge--accent">
-                          {template.badge}
-                        </span>
-                        <span className="workspace-template-tile__badge">
-                          {getCategoryLabel(template.category)}
-                        </span>
-                        {template.favorited ? (
-                          <span className="workspace-template-tile__badge workspace-template-tile__badge--favorite">
-                            已收藏
-                          </span>
-                        ) : null}
-                      </div>
-
+                      <span className="workspace-template-tile__eyebrow">{template.badge}</span>
+                      <h3 className="workspace-template-tile__title">{template.name}</h3>
                       <p className="workspace-template-tile__description">{template.description}</p>
+                      <p className="workspace-template-tile__spotlight">{template.spotlight}</p>
 
-                      <div className="workspace-template-tile__actions">
+                      <div className="workspace-template-tile__footer">
                         <Button
                           type="primary"
+                          block
+                          className="workspace-template-tile__cta"
                           loading={submittingTemplateId === template.id}
                           onClick={() => handleUseTemplate(template)}
                         >
-                          {actionLabel} <ArrowRightOutlined />
+                          {isTemplateSwitch ? '应用到当前简历' : '使用模板'}
                         </Button>
                       </div>
                     </div>
@@ -294,8 +162,8 @@ export default function TemplatesPage() {
                 <div className="workspace-empty__icon">
                   <AppstoreOutlined />
                 </div>
-                <h3 className="workspace-empty__title">没有找到匹配的模板</h3>
-                <p className="workspace-empty__description">换个关键词或切换筛选条件再试试看。</p>
+                <h3 className="workspace-empty__title">模板暂时还没准备好</h3>
+                <p className="workspace-empty__description">稍后再刷新一下，我们会先把正式模板整理到这里。</p>
               </div>
             )}
           </div>

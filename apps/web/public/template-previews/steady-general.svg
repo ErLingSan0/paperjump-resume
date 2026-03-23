@@ -1,26 +1,59 @@
 <svg width="900" height="1260" viewBox="0 0 900 1260" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="900" height="1260" rx="40" fill="#F5F4EF"/>
-  <rect x="48" y="48" width="804" height="1164" rx="28" fill="white" stroke="#E5E7EB"/>
-  <rect x="96" y="96" width="708" height="12" rx="6" fill="#101418"/>
-  <rect x="96" y="132" width="270" height="22" rx="11" fill="#D8DEE6"/>
-  <text x="96" y="214" fill="#101418" font-size="46" font-family="Georgia" font-weight="700">Steady General</text>
-  <text x="96" y="250" fill="#6B7280" font-size="20" font-family="Arial">product manager / project delivery</text>
-  <rect x="96" y="294" width="708" height="1" fill="#E5E7EB"/>
-  <rect x="96" y="340" width="146" height="14" rx="7" fill="#101418"/>
-  <rect x="96" y="384" width="690" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="96" y="410" width="662" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="96" y="436" width="676" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="96" y="494" width="146" height="14" rx="7" fill="#101418"/>
-  <rect x="96" y="538" width="690" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="96" y="564" width="670" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="96" y="590" width="642" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="96" y="648" width="146" height="14" rx="7" fill="#101418"/>
-  <rect x="96" y="692" width="690" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="96" y="718" width="666" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="96" y="744" width="648" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="96" y="860" width="708" height="180" rx="24" fill="#F9FAFB"/>
-  <rect x="128" y="896" width="156" height="12" rx="6" fill="#101418"/>
-  <rect x="128" y="930" width="644" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="128" y="956" width="622" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="128" y="982" width="598" height="10" rx="5" fill="#E5E7EB"/>
+  <rect width="900" height="1260" fill="#F5F4F1"/>
+  <rect x="18" y="18" width="864" height="1224" fill="white"/>
+  <rect x="84" y="60" width="70" height="86" rx="8" fill="transparent"/>
+  <image
+    href="/template-avatars/pony-office.jpg"
+    x="84"
+    y="60"
+    width="70"
+    height="86"
+    preserveAspectRatio="xMidYMid slice"
+    clip-path="url(#steadyAvatarClip)"
+  />
+
+  <text x="186" y="102" fill="#13151A" font-size="31" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-weight="700">林晓雯</text>
+  <text x="186" y="138" fill="#2A2D36" font-size="15.5" font-family="'PingFang SC','Microsoft YaHei',sans-serif">北京   13800138000   xiaow@example.com</text>
+  <line x1="42" y1="214" x2="882" y2="214" stroke="#A35BE5" stroke-width="1.5"/>
+
+  <g font-family="'PingFang SC','Microsoft YaHei',sans-serif">
+    <text x="42" y="272" fill="#A35BE5" font-size="25" font-weight="700">教育经历</text>
+    <text x="42" y="318" fill="#121418" font-size="23" font-weight="700">北京邮电大学</text>
+    <text x="42" y="350" fill="#20242C" font-size="19">计算机科学与技术</text>
+    <text x="818" y="318" text-anchor="end" fill="#121418" font-size="20" font-weight="700">2013-09 - 2016-07</text>
+    <text x="818" y="348" text-anchor="end" fill="#121418" font-size="18">硕士</text>
+    <text x="64" y="390" fill="#1C1F26" font-size="18">•  主修软件工程、数据结构、算法设计与分析、操作系统等核心课程。</text>
+    <text x="64" y="420" fill="#1C1F26" font-size="18">•  参与多项科研项目，研究分布式系统与网络通信技术，奠定扎实理论基础。</text>
+
+    <text x="42" y="486" fill="#121418" font-size="23" font-weight="700">北京邮电大学</text>
+    <text x="42" y="518" fill="#20242C" font-size="19">软件工程</text>
+    <text x="818" y="486" text-anchor="end" fill="#121418" font-size="20" font-weight="700">2009-09 - 2013-07</text>
+    <text x="818" y="516" text-anchor="end" fill="#121418" font-size="18">本科</text>
+    <text x="64" y="558" fill="#1C1F26" font-size="18">•  系统学习软件开发生命周期、面向对象编程、数据库原理等专业知识。</text>
+    <text x="64" y="588" fill="#1C1F26" font-size="18">•  连续四年获得校级奖学金，积极参与学生社团活动，提升团队协作与领导能力。</text>
+
+    <text x="42" y="674" fill="#A35BE5" font-size="25" font-weight="700">工作经历</text>
+    <text x="42" y="720" fill="#121418" font-size="23" font-weight="700">某知名互联网公司</text>
+    <text x="42" y="752" fill="#20242C" font-size="19">高级前端架构师</text>
+    <text x="818" y="720" text-anchor="end" fill="#121418" font-size="20" font-weight="700">2021-08 - 2024-05</text>
+    <text x="64" y="794" fill="#1C1F26" font-size="18">•  主导公司级前端架构演进，负责核心业务线的微前端架构设计与落地。</text>
+    <text x="64" y="824" fill="#1C1F26" font-size="18">•  从零开始建设并维护企业级中台组件库，沉淀超过 100 个高复用组件。</text>
+    <text x="64" y="854" fill="#1C1F26" font-size="18">•  构建完善的前端性能监控体系，持续追踪核心业务指标，提升首屏与交互体验。</text>
+    <text x="64" y="884" fill="#1C1F26" font-size="18">•  推动团队采用统一工程化与模块拆分规范，降低复杂项目协作成本。</text>
+
+    <text x="42" y="968" fill="#121418" font-size="23" font-weight="700">某大型电商平台</text>
+    <text x="42" y="1000" fill="#20242C" font-size="19">前端架构师</text>
+    <text x="818" y="968" text-anchor="end" fill="#121418" font-size="20" font-weight="700">2018-03 - 2021-07</text>
+    <text x="64" y="1042" fill="#1C1F26" font-size="18">•  负责核心交易系统前端架构设计与重构，推动老旧系统升级为 Vue/React 混合架构。</text>
+    <text x="64" y="1072" fill="#1C1F26" font-size="18">•  设计并实践组件化开发规范，推动前端团队采用统一组件库与标准流程。</text>
+
+    <text x="42" y="1150" fill="#A35BE5" font-size="25" font-weight="700">个人总结</text>
+    <text x="42" y="1194" fill="#242832" font-size="18.5">资深前端架构师，拥有超过 8 年 Web 前端开发经验，长期聚焦复杂系统架构设计、</text>
+    <text x="42" y="1224" fill="#242832" font-size="18.5">工程化体系建设与性能优化，能同时兼顾交付效率、稳定性和团队协作质量。</text>
+  </g>
+  <defs>
+    <clipPath id="steadyAvatarClip">
+      <rect x="84" y="60" width="70" height="86" rx="8" />
+    </clipPath>
+  </defs>
 </svg>

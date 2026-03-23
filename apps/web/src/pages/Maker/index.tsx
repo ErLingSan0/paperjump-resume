@@ -15,17 +15,20 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   DownOutlined,
+  EnvironmentOutlined,
   ExportOutlined,
   FilePdfOutlined,
   HolderOutlined,
-  HomeOutlined,
   LaptopOutlined,
+  LoadingOutlined,
+  MailOutlined,
   PlusOutlined,
+  PhoneOutlined,
   PrinterOutlined,
   RedoOutlined,
+  RightOutlined,
   SaveOutlined,
   SolutionOutlined,
-  StarFilled,
   StarOutlined,
   ToolOutlined,
   UndoOutlined,
@@ -47,7 +50,6 @@ import {
   message,
 } from 'antd';
 
-import TemplatePaperPreview from '@/components/TemplatePaperPreview';
 import type {
   ResumeAccentTone,
   CustomSection,
@@ -68,7 +70,6 @@ import {
 import type { ResumeTemplate } from '@/services/templates';
 import {
   queryTemplates,
-  setTemplateFavorite,
 } from '@/services/templates';
 import {
   createEmptyDraft,
@@ -77,12 +78,12 @@ import {
 } from '@/utils/resumeDrafts';
 import { getErrorMessage } from '@/utils/request';
 import {
-  applyTemplateSettingsToDraft,
   buildTemplatePickerPath,
   getTemplateLayoutVariant,
   getTemplateSectionClassName as getSharedTemplateSectionClassName,
-  sidebarTemplateSectionKeys,
 } from '@/utils/templateFlow';
+import type { TemplateLayoutVariant as PreviewLayoutVariant } from '@/utils/templateFlow';
+import { isVisibleTemplateCode } from '@/utils/templateRegistry';
 
 const { TextArea } = Input;
 const productName = '纸跃简历';
@@ -102,22 +103,14 @@ const builtInSections: Array<{
 
 const styleWorkspaceSections = [
   {
-    id: 'section-layout-recipes',
-    label: '模板方案',
-    icon: <AppstoreOutlined />,
-    tag: '模板',
-  },
-  {
     id: 'section-layout-type',
-    label: '字体与标题',
+    label: '字体与颜色',
     icon: <BgColorsOutlined />,
-    tag: '样式',
   },
   {
     id: 'section-layout-spacing',
-    label: '页面节奏',
+    label: '字号与间距',
     icon: <ColumnWidthOutlined />,
-    tag: '微调',
   },
 ] as const;
 
@@ -125,29 +118,13 @@ const builtInSectionMeta = Object.fromEntries(
   builtInSections.map((section) => [section.key, section]),
 ) as Record<ResumeSectionKey, (typeof builtInSections)[number]>;
 
-const layoutOptions: Array<{
-  key: ResumeLayoutPreset;
-  title: string;
-  description: string;
-}> = [
-  {
-    key: 'classic',
-    title: '经典单栏',
-    description: '稳妥清晰，适合大多数岗位。',
-  },
-  {
-    key: 'compact',
-    title: '紧凑模式',
-    description: '压缩留白，适合内容偏多时收在一页。',
-  },
-];
-
 const accentOptions: Array<{
   key: ResumeAccentTone;
   label: string;
   color: string;
 }> = [
   { key: 'cobalt', label: '钴蓝', color: '#2151ff' },
+  { key: 'violet', label: '霁紫', color: '#8a4dff' },
   { key: 'sage', label: '松绿', color: '#7b9464' },
   { key: 'ink', label: '墨黑', color: '#101418' },
 ];
@@ -178,84 +155,15 @@ const fontOptions: Array<{
   },
 ];
 
-const titleStyleOptions: Array<{
-  key: ResumeTitleStyle;
-  label: string;
-  caption: string;
-}> = [
-  {
-    key: 'rule',
-    label: '细分隔线',
-    caption: '清楚',
-  },
-  {
-    key: 'banner',
-    label: '强调条',
-    caption: '醒目',
-  },
-  {
-    key: 'minimal',
-    label: '极简文本',
-    caption: '克制',
-  },
-];
-
 const previewFontFamilyMap: Record<ResumeFontFamily, string> = {
   studio: "'Plus Jakarta Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif",
   system: "'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif",
   serif: "'Songti SC', 'STSong', 'Noto Serif SC', serif",
 };
 
-type TemplateFilterKey = 'all' | 'campus' | 'general' | 'compact' | 'favorites';
-type PreviewLayoutVariant = 'default' | 'student' | 'project' | 'sidebar' | 'executive';
-
-type StyleRecipeSettings = Pick<
-  ResumeDraft,
-  | 'layoutPreset'
-  | 'accentTone'
-  | 'fontFamily'
-  | 'titleStyle'
-  | 'bodyFontSize'
-  | 'lineHeight'
-  | 'pagePadding'
-  | 'sectionSpacing'
->;
-
 type ExportState = 'idle' | 'pdf';
 type WorkspaceMode = 'content' | 'style';
 type ChecklistLevel = 'ready' | 'attention' | 'missing';
-const templateFilterOptions: Array<{
-  key: TemplateFilterKey;
-  label: string;
-  match: (recipe: ResumeTemplate, favorites: number[]) => boolean;
-}> = [
-  {
-    key: 'all',
-    label: '全部模板',
-    match: () => true,
-  },
-  {
-    key: 'campus',
-    label: '校招 / 实习',
-    match: (recipe) => recipe.category === 'campus',
-  },
-  {
-    key: 'general',
-    label: '通用投递',
-    match: (recipe) => recipe.category === 'general',
-  },
-  {
-    key: 'compact',
-    label: '一页压缩',
-    match: (recipe) => recipe.category === 'compact',
-  },
-  {
-    key: 'favorites',
-    label: '已收藏',
-    match: (recipe, favorites) => favorites.includes(recipe.id),
-  },
-];
-
 export default function MakerPage() {
   const params = useParams<{ resumeId: string }>();
   const routeResumeId = params.resumeId ?? 'new';
@@ -273,11 +181,10 @@ export default function MakerPage() {
   const [activeSectionId, setActiveSectionId] = useState('section-profile');
   const [historyVersion, setHistoryVersion] = useState(0);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
-  const [templateFilter, setTemplateFilter] = useState<TemplateFilterKey>('all');
   const [confirmNewDraftOpen, setConfirmNewDraftOpen] = useState(false);
   const [draggingSectionKey, setDraggingSectionKey] = useState<ResumeSectionKey | null>(null);
   const [dragOverSectionKey, setDragOverSectionKey] = useState<ResumeSectionKey | null>(null);
-  const [styleRecipeOptions, setStyleRecipeOptions] = useState<ResumeTemplate[]>([]);
+  const [templateOptions, setTemplateOptions] = useState<ResumeTemplate[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -286,11 +193,11 @@ export default function MakerPage() {
       try {
         const templates = await queryTemplates();
         if (!cancelled) {
-          setStyleRecipeOptions(templates);
+          setTemplateOptions(templates);
         }
-      } catch (error) {
+      } catch {
         if (!cancelled) {
-          message.error(getErrorMessage(error, '模板列表加载失败，请稍后再试'));
+          setTemplateOptions([]);
         }
       }
     }
@@ -490,16 +397,11 @@ export default function MakerPage() {
     '--resume-page-padding': `${draft.pagePadding}px`,
     '--resume-section-gap': `${draft.sectionSpacing}px`,
   } as CSSProperties;
-  const activeStyleRecipe = findActiveStyleRecipe(draft, styleRecipeOptions);
   const currentTemplateRecipe =
-    styleRecipeOptions.find((option) => option.id === draft.templateId) ?? activeStyleRecipe;
+    templateOptions.find((option) => option.id === draft.templateId) ?? null;
   const previewLayoutVariant = getTemplateLayoutVariant(currentTemplateRecipe?.code);
   const isPdfExporting = exportState === 'pdf';
   const orderedSections = draft.sectionOrder.map((key) => builtInSectionMeta[key]);
-  const currentLayoutOption = layoutOptions.find((option) => option.key === draft.layoutPreset);
-  const currentFontOption = fontOptions.find((option) => option.key === draft.fontFamily);
-  const currentTitleOption = titleStyleOptions.find((option) => option.key === draft.titleStyle);
-  const currentAccentOption = accentOptions.find((option) => option.key === draft.accentTone);
   const canUndo = historyRef.current.undo.length > 0;
   const canRedo = historyRef.current.redo.length > 0;
   const activeSectionLabel = getSectionDisplayLabel(activeSectionId, draft.customSections.length);
@@ -508,36 +410,60 @@ export default function MakerPage() {
   const checklistSummary = summarizeChecklist(contentChecklist);
   const sidebarMetaLabel =
     workspaceMode === 'style'
-      ? `${styleWorkspaceSections.length + 1} 组设置`
+      ? ''
       : `${completion.completed}/${completion.total}`;
-  const favoriteRecipeIds = styleRecipeOptions
-    .filter((item) => item.favorited)
-    .map((item) => item.id);
   const checklistById = Object.fromEntries(
     contentChecklist.map((item) => [item.id, item]),
   ) as Record<string, ContentChecklistItem>;
-  const filteredStyleRecipes = styleRecipeOptions.filter((recipe) =>
-    templateFilterOptions
-      .find((option) => option.key === templateFilter)
-      ?.match(recipe, favoriteRecipeIds),
-  );
-  const layoutSummaryItems = [
-    activeStyleRecipe ? `方案：${activeStyleRecipe.name}` : '方案：已自定义',
-    `密度：${currentLayoutOption?.title ?? '经典单栏'}`,
-    `字体：${currentFontOption?.label ?? '工作室无衬线'}`,
-    `标题：${currentTitleOption?.label ?? '细分隔线'}`,
-    `强调：${currentAccentOption?.label ?? '钴蓝'}`,
-    `正文 ${draft.bodyFontSize}px / 行距 ${draft.lineHeight.toFixed(2)}`,
-  ];
   const headerMetaItems = [
-    draft.profile.phone,
-    draft.profile.email,
-    draft.profile.location,
-    draft.profile.website,
-    ...draft.profile.facts
-      .filter((item) => item.label.trim() && item.value.trim())
-      .map((item) => `${item.label}：${item.value}`),
-  ].filter(Boolean);
+    {
+      key: 'location',
+      label: '地址',
+      icon: <EnvironmentOutlined />,
+      value: draft.profile.location.trim(),
+      forceLabel: false,
+    },
+    {
+      key: 'phone',
+      label: '电话',
+      icon: <PhoneOutlined />,
+      value: draft.profile.phone.trim(),
+      forceLabel: false,
+    },
+    {
+      key: 'email',
+      label: '邮箱',
+      icon: <MailOutlined />,
+      value: draft.profile.email.trim(),
+      forceLabel: false,
+    },
+    draft.profile.website.trim()
+      ? {
+          key: 'website',
+          label: '链接',
+          icon: null,
+          value: draft.profile.website.trim(),
+          forceLabel: true,
+        }
+      : null,
+    ...draft.profile.facts.map((item) => ({
+      key: item.id,
+      label: item.label.trim(),
+      icon: null,
+      value: item.value.trim(),
+      forceLabel: true,
+    })),
+  ].filter(
+    (
+      item,
+    ): item is {
+      key: string;
+      label: string;
+      icon: ReactNode | null;
+      value: string;
+      forceLabel: boolean;
+    } => Boolean(item?.value),
+  );
   const previewSections = orderedSections
     .map((section) => ({
       key: section.key,
@@ -553,15 +479,193 @@ export default function MakerPage() {
         (item.title.trim() || item.subtitle.trim() || item.time.trim() || item.content.trim()),
     )
     .map((item) => renderCustomPreviewSection(item));
-  const sidebarPreviewSections =
-    previewLayoutVariant === 'sidebar'
-      ? previewSections.filter((item) => sidebarTemplateSectionKeys.has(item.key))
-      : [];
-  const mainPreviewSections =
-    previewLayoutVariant === 'sidebar'
-      ? previewSections.filter((item) => !sidebarTemplateSectionKeys.has(item.key))
-      : previewSections;
-  const useSidebarPreview = previewLayoutVariant === 'sidebar' && sidebarPreviewSections.length > 0;
+  const previewNodes = [...previewSections.map((item) => item.node), ...customPreviewSections];
+  const hasResumeAvatar = Boolean(draft.profile.avatar);
+
+  function renderResumeAvatar() {
+    if (!draft.profile.avatar) {
+      return null;
+    }
+
+    return (
+      <div className="paperjump-maker__resume-avatar">
+        <img src={draft.profile.avatar} alt={draft.profile.fullName || '头像'} />
+      </div>
+    );
+  }
+
+  function renderContactRow(props?: {
+    withIcons?: boolean;
+    centered?: boolean;
+    labeled?: boolean;
+  }) {
+    const { withIcons = false, centered = false, labeled = false } = props ?? {};
+    if (!headerMetaItems.length) {
+      return null;
+    }
+
+    return (
+      <div
+        className={[
+          'paperjump-maker__resume-meta',
+          centered ? 'paperjump-maker__resume-meta--centered' : '',
+          labeled ? 'paperjump-maker__resume-meta--labeled' : '',
+          withIcons ? 'paperjump-maker__resume-meta--with-icons' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {headerMetaItems.map((item) => (
+          <span key={item.key} className="paperjump-maker__resume-meta-item">
+            {withIcons && item.icon ? (
+              <span className="paperjump-maker__resume-meta-icon">{item.icon}</span>
+            ) : null}
+            {labeled || item.forceLabel ? (
+              <span className="paperjump-maker__resume-meta-label">{item.label}：</span>
+            ) : null}
+            <span className="paperjump-maker__resume-meta-text">{item.value}</span>
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  function renderHeaderInfoGrid() {
+    const infoRows = [
+      { label: '姓名', value: draft.profile.fullName || '你的名字' },
+      { label: '电话', value: draft.profile.phone || '待补充' },
+      { label: '邮箱', value: draft.profile.email || '待补充' },
+      { label: '地址', value: draft.profile.location || '待补充' },
+      ...(draft.profile.website.trim()
+        ? [{ label: '链接', value: draft.profile.website.trim() }]
+        : []),
+      ...draft.profile.facts
+        .filter((item) => item.label.trim() && item.value.trim())
+        .map((item) => ({
+          label: item.label.trim(),
+          value: item.value.trim(),
+        })),
+    ];
+
+    return (
+      <div className="paperjump-maker__resume-info-grid">
+        {infoRows.map((item) => (
+          <div key={item.label} className="paperjump-maker__resume-info-grid-item">
+            <span className="paperjump-maker__resume-info-grid-label">{item.label}</span>
+            <strong className="paperjump-maker__resume-info-grid-value">{item.value}</strong>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  function renderResumeHeader() {
+    if (previewLayoutVariant === 'centered-blue') {
+      return (
+        <div
+          className={[
+            'paperjump-maker__resume-header',
+            'paperjump-maker__resume-header--centered-blue',
+            !hasResumeAvatar ? 'paperjump-maker__resume-header--without-avatar' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-resume-section="section-profile"
+          onClick={() => scrollToSection('section-profile')}
+        >
+          {renderResumeAvatar()}
+          <div className="paperjump-maker__resume-header-copy paperjump-maker__resume-header-copy--centered">
+            <Typography.Title level={2}>{draft.profile.fullName || '你的名字'}</Typography.Title>
+          </div>
+          {renderContactRow({ withIcons: true, centered: true })}
+        </div>
+      );
+    }
+
+    if (previewLayoutVariant === 'profile-purple') {
+      return (
+        <div
+          className={[
+            'paperjump-maker__resume-header',
+            'paperjump-maker__resume-header--profile-purple',
+            !hasResumeAvatar ? 'paperjump-maker__resume-header--without-avatar' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-resume-section="section-profile"
+          onClick={() => scrollToSection('section-profile')}
+        >
+          {renderResumeAvatar()}
+          <div className="paperjump-maker__resume-header-copy">
+            <Typography.Title level={2}>{draft.profile.fullName || '你的名字'}</Typography.Title>
+            {renderContactRow()}
+          </div>
+        </div>
+      );
+    }
+
+    if (previewLayoutVariant === 'info-grid-blue') {
+      return (
+        <div
+          className={[
+            'paperjump-maker__resume-header',
+            'paperjump-maker__resume-header--info-grid-blue',
+            !hasResumeAvatar ? 'paperjump-maker__resume-header--without-avatar' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-resume-section="section-profile"
+          onClick={() => scrollToSection('section-profile')}
+        >
+          {renderResumeAvatar()}
+          {renderHeaderInfoGrid()}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={[
+          'paperjump-maker__resume-header',
+          'paperjump-maker__resume-header--hero-band-blue',
+          !hasResumeAvatar ? 'paperjump-maker__resume-header--without-avatar' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        data-resume-section="section-profile"
+        onClick={() => scrollToSection('section-profile')}
+      >
+        <div
+          className={[
+            'paperjump-maker__resume-hero-band',
+            !hasResumeAvatar ? 'paperjump-maker__resume-hero-band--without-avatar' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {renderResumeAvatar()}
+          <Typography.Title level={2}>{draft.profile.fullName || '你的名字'}</Typography.Title>
+          {renderContactRow({ centered: true, labeled: true })}
+        </div>
+      </div>
+    );
+  }
+
+  function renderResumePreviewLayout() {
+    return (
+      <>
+        {renderResumeHeader()}
+        <div
+          className={[
+            'paperjump-maker__resume-layout',
+            `paperjump-maker__resume-layout--${previewLayoutVariant}`,
+          ].join(' ')}
+        >
+          {previewNodes}
+        </div>
+      </>
+    );
+  }
 
   function updateDraft(updater: (current: ResumeDraft) => ResumeDraft) {
     let didChange = false;
@@ -701,10 +805,6 @@ export default function MakerPage() {
       ...current,
       sectionSpacing,
     }));
-  }
-
-  function applyStyleRecipe(recipe: ResumeTemplate) {
-    updateDraft((current) => applyTemplateSettingsToDraft(current, recipe));
   }
 
   function toggleSectionCollapse(id: string) {
@@ -1071,7 +1171,7 @@ export default function MakerPage() {
 
   function handleWorkspaceModeChange(nextMode: WorkspaceMode) {
     if (nextMode === 'style') {
-      scrollToSection('section-layout-recipes');
+      scrollToSection('section-layout-type');
       return;
     }
 
@@ -1113,29 +1213,13 @@ export default function MakerPage() {
     }
 
     setExportState('pdf');
-    message.open({
-      key: 'resume-pdf-export',
-      type: 'loading',
-      content: '正在生成 PDF...',
-      duration: 0,
-    });
 
     try {
       await exportResumePdf(previewPaper, createDownloadFilename(draft.title, 'pdf'));
-      message.open({
-        key: 'resume-pdf-export',
-        type: 'success',
-        content: 'PDF 已开始下载',
-      });
       setExportDrawerOpen(false);
     } catch (error) {
       console.error(error);
-      message.open({
-        key: 'resume-pdf-export',
-        type: 'error',
-        content: getReadableExportError(error),
-        duration: 5,
-      });
+      message.error(getReadableExportError(error));
     } finally {
       setExportState('idle');
     }
@@ -1178,17 +1262,6 @@ export default function MakerPage() {
     return Upload.LIST_IGNORE;
   }
 
-  async function toggleFavoriteRecipe(template: ResumeTemplate) {
-    try {
-      await setTemplateFavorite(template.id, !template.favorited);
-      const templates = await queryTemplates();
-      setStyleRecipeOptions(templates);
-      message.success(template.favorited ? '已取消收藏模板' : '已收藏模板');
-    } catch (error) {
-      message.error(getErrorMessage(error, '模板收藏失败，请稍后再试'));
-    }
-  }
-
   function handleRequestNewDraft() {
     if (!hasDraftContent(draft) || isStarterDraft(draft)) {
       history.push(buildTemplatePickerPath({ from: 'maker', intent: 'create' }));
@@ -1207,129 +1280,9 @@ export default function MakerPage() {
     return (
       <>
         <EditorSection
-          id="section-layout-recipes"
-          title="模板方案"
-          description="先选一个接近目标岗位的文档模板，再决定是否继续细调。"
-          hidden={workspaceMode !== 'style'}
-          extra={
-            <div className="paperjump-maker__layout-toolbar">
-              <Tag color={activeStyleRecipe ? 'processing' : 'default'}>
-                {activeStyleRecipe ? activeStyleRecipe.name : '已自定义'}
-              </Tag>
-              <Tag>{favoriteRecipeIds.length} 个收藏</Tag>
-            </div>
-          }
-          {...getEditorSectionProps('section-layout-recipes')}
-        >
-          <div className="paperjump-maker__layout-group paperjump-maker__layout-group--compact">
-            <div className="paperjump-maker__layout-group-head">
-              <div>
-                <Typography.Title level={5}>文档模板</Typography.Title>
-                <Typography.Text type="secondary">
-                  模板决定第一印象，适合先定方向，再去写内容和微调。
-                </Typography.Text>
-              </div>
-              <AppstoreOutlined />
-            </div>
-
-            <div className="paperjump-maker__template-filter-row">
-              {templateFilterOptions.map((option) => {
-                const count = styleRecipeOptions.filter((recipe) =>
-                  option.match(recipe, favoriteRecipeIds),
-                ).length;
-
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    className={
-                      templateFilter === option.key
-                        ? 'paperjump-maker__template-filter paperjump-maker__template-filter--active'
-                        : 'paperjump-maker__template-filter'
-                    }
-                    onClick={() => setTemplateFilter(option.key)}
-                  >
-                    <span>{option.label}</span>
-                    <em>{count}</em>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="paperjump-maker__preset-grid">
-              {filteredStyleRecipes.map((option) => {
-                const isActiveRecipe = activeStyleRecipe?.id === option.id;
-
-                return (
-                  <div
-                    key={option.id}
-                    className={
-                      isActiveRecipe
-                        ? 'paperjump-maker__preset-card paperjump-maker__preset-card--active'
-                        : 'paperjump-maker__preset-card'
-                    }
-                  >
-                    <div className="paperjump-maker__preset-card-head">
-                      <div className="paperjump-maker__preset-card-meta">
-                        <span className="paperjump-maker__preset-spotlight">{option.spotlight}</span>
-                        {isActiveRecipe ? (
-                          <span className="paperjump-maker__preset-status">当前使用</span>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        className={
-                          favoriteRecipeIds.includes(option.id)
-                            ? 'paperjump-maker__preset-favorite paperjump-maker__preset-favorite--active'
-                            : 'paperjump-maker__preset-favorite'
-                        }
-                        aria-label={favoriteRecipeIds.includes(option.id) ? '取消收藏模板' : '收藏模板'}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void toggleFavoriteRecipe(option);
-                        }}
-                      >
-                        {favoriteRecipeIds.includes(option.id) ? <StarFilled /> : <StarOutlined />}
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      className="paperjump-maker__preset-apply"
-                      onClick={() => applyStyleRecipe(option)}
-                    >
-                      <TemplateRecipePreview recipe={option} />
-                      <div className="paperjump-maker__preset-copy">
-                        <strong>{option.name}</strong>
-                        <span className="paperjump-maker__preset-description">{option.description}</span>
-                        <em className="paperjump-maker__preset-note">{buildTemplateSummary(option)}</em>
-                      </div>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            {!filteredStyleRecipes.length ? (
-              <div className="paperjump-maker__template-empty">
-                <strong>当前筛选下还没有模板</strong>
-                <span>先去收藏一套常用模板，或者切回“全部模板”继续挑选。</span>
-              </div>
-            ) : null}
-
-            <div className="paperjump-maker__layout-summary">
-              {layoutSummaryItems.map((item) => (
-                <span key={item} className="paperjump-maker__layout-summary-item">
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
-        </EditorSection>
-
-        <EditorSection
           id="section-layout-type"
-          title="字体与标题"
-          description="字体、标题样式和强调色决定整份简历的气质，比局部装饰更重要。"
+          title="字体与颜色"
+          description=""
           hidden={workspaceMode !== 'style'}
           {...getEditorSectionProps('section-layout-type')}
         >
@@ -1340,9 +1293,6 @@ export default function MakerPage() {
                   <SolutionOutlined />
                   <span>字体</span>
                 </div>
-                <p className="paperjump-maker__layout-inline-description">
-                  先确定阅读感受，正文和联系方式都会跟着统一变化。
-                </p>
               </div>
               <div className="paperjump-maker__compact-chip-row">
                 {fontOptions.map((option) => (
@@ -1366,41 +1316,9 @@ export default function MakerPage() {
             <div className="paperjump-maker__layout-inline">
               <div className="paperjump-maker__layout-inline-copy">
                 <div className="paperjump-maker__layout-inline-head">
-                  <ColumnWidthOutlined />
-                  <span>标题样式</span>
+                  <BgColorsOutlined />
+                  <span>主颜色</span>
                 </div>
-                <p className="paperjump-maker__layout-inline-description">
-                  决定分区标题的存在感，建议和目标岗位气质保持一致。
-                </p>
-              </div>
-              <div className="paperjump-maker__compact-chip-row">
-                {titleStyleOptions.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    className={
-                      draft.titleStyle === option.key
-                        ? 'paperjump-maker__compact-chip paperjump-maker__compact-chip--active'
-                        : 'paperjump-maker__compact-chip'
-                    }
-                    onClick={() => updateTitleStyle(option.key)}
-                  >
-                    <strong>{option.label}</strong>
-                    <span>{option.caption}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="paperjump-maker__layout-group paperjump-maker__layout-group--compact">
-              <div className="paperjump-maker__layout-group-head">
-                <div>
-                  <Typography.Title level={5}>主颜色</Typography.Title>
-                  <Typography.Text type="secondary">
-                    强调色会覆盖标题和标签，建议控制在一份简历只用一个主色。
-                  </Typography.Text>
-                </div>
-                <BgColorsOutlined />
               </div>
               <div className="paperjump-maker__accent-row">
                 {accentOptions.map((option) => (
@@ -1428,8 +1346,8 @@ export default function MakerPage() {
 
         <EditorSection
           id="section-layout-spacing"
-          title="页面节奏"
-          description="在这里调整密度、字号、行距和页边距，让纸面更像一份正式文档。"
+          title="字号与间距"
+          description=""
           hidden={workspaceMode !== 'style'}
           {...getEditorSectionProps('section-layout-spacing')}
         >
@@ -1437,47 +1355,13 @@ export default function MakerPage() {
             <div className="paperjump-maker__layout-inline">
               <div className="paperjump-maker__layout-inline-copy">
                 <div className="paperjump-maker__layout-inline-head">
-                  <AppstoreOutlined />
-                  <span>密度</span>
+                  <ColumnWidthOutlined />
+                  <span>页面细节</span>
                 </div>
-                <p className="paperjump-maker__layout-inline-description">
-                  先决定整页是舒展还是紧凑，再去细调字号和留白。
-                </p>
               </div>
-              <div className="paperjump-maker__compact-chip-row">
-                {layoutOptions.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    className={
-                      draft.layoutPreset === option.key
-                        ? 'paperjump-maker__compact-chip paperjump-maker__compact-chip--active'
-                        : 'paperjump-maker__compact-chip'
-                    }
-                    onClick={() => updateLayoutPreset(option.key)}
-                  >
-                    <strong>{option.title}</strong>
-                    <span>{option.description}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="paperjump-maker__layout-group paperjump-maker__layout-group--compact">
-              <div className="paperjump-maker__layout-group-head">
-                <div>
-                  <Typography.Title level={5}>页面节奏</Typography.Title>
-                  <Typography.Text type="secondary">
-                    用四个文档级旋钮控制信息密度，不再把微调藏在零碎选项里。
-                  </Typography.Text>
-                </div>
-                <ColumnWidthOutlined />
-              </div>
-
               <div className="paperjump-maker__range-grid">
                 <RangeSetting
                   label="正文大小"
-                  hint="控制段落阅读密度和纸面观感。"
                   min={10.5}
                   max={16}
                   step={0.5}
@@ -1487,7 +1371,6 @@ export default function MakerPage() {
                 />
                 <RangeSetting
                   label="行距"
-                  hint="让段落更透气，或者更适合压缩内容。"
                   min={1.25}
                   max={1.95}
                   step={0.05}
@@ -1497,7 +1380,6 @@ export default function MakerPage() {
                 />
                 <RangeSetting
                   label="页边距"
-                  hint="决定纸张四周的留白感。"
                   min={16}
                   max={40}
                   step={1}
@@ -1507,7 +1389,6 @@ export default function MakerPage() {
                 />
                 <RangeSetting
                   label="模块间距"
-                  hint="控制各区块之间的呼吸感。"
                   min={10}
                   max={34}
                   step={1}
@@ -1523,75 +1404,6 @@ export default function MakerPage() {
     );
   }
 
-  function renderContentBoard() {
-    if (workspaceMode !== 'content') {
-      return null;
-    }
-
-    const primaryTodo = contentChecklist.find((item) => item.level !== 'ready') ?? null;
-    const boardTitle = checklistSummary.missing || checklistSummary.attention ? '下一步' : '内容已就绪';
-    const boardSummary = primaryTodo
-      ? `先补完${primaryTodo.title}，右侧纸面会更完整。`
-      : '可以继续微调样式，或者直接导出成品。';
-
-    return (
-      <section
-        className={[
-          'paperjump-maker__content-board',
-          'paperjump-maker__content-board--streamlined',
-          primaryTodo ? '' : 'paperjump-maker__content-board--complete',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <div className="paperjump-maker__content-board-head">
-          <div className="paperjump-maker__content-board-copy-intro">
-            <Typography.Title level={4}>{boardTitle}</Typography.Title>
-            <Typography.Text type="secondary">
-              {boardSummary}
-            </Typography.Text>
-          </div>
-          <div className="paperjump-maker__content-board-meta">
-            <span className="paperjump-maker__content-board-pill">
-              已完成 {checklistSummary.ready}/{contentChecklist.length}
-            </span>
-            <span className="paperjump-maker__content-board-pill paperjump-maker__content-board-pill--muted">
-              缺失 {checklistSummary.missing}
-            </span>
-          </div>
-        </div>
-
-        <div className="paperjump-maker__content-board-inline">
-          {primaryTodo ? (
-            <button
-              type="button"
-              className="paperjump-maker__content-board-inline-action"
-              onClick={() => scrollToSection(primaryTodo.id)}
-            >
-              <div className="paperjump-maker__content-board-inline-copy">
-                <span>优先补强</span>
-                <strong>{primaryTodo.title}</strong>
-              </div>
-              <em>{primaryTodo.action}</em>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="paperjump-maker__content-board-inline-action paperjump-maker__content-board-inline-action--complete"
-              onClick={() => setExportDrawerOpen(true)}
-            >
-              <div className="paperjump-maker__content-board-inline-copy">
-                <span>已就绪</span>
-                <strong>打开导出</strong>
-              </div>
-              <em>内容已经完整，可以直接生成 PDF。</em>
-            </button>
-          )}
-        </div>
-      </section>
-    );
-  }
-
   function renderSidebarRows() {
     if (workspaceMode === 'style') {
       return (
@@ -1602,17 +1414,9 @@ export default function MakerPage() {
               icon={section.icon}
               label={section.label}
               active={activeSectionId === section.id}
-              right={<Tag color="processing">{section.tag}</Tag>}
               onClick={() => scrollToSection(section.id)}
             />
           ))}
-
-          <SidebarSectionRow
-            icon={<DownloadOutlined />}
-            label="导出与恢复"
-            right={<Tag color="default">文档</Tag>}
-            onClick={() => setExportDrawerOpen(true)}
-          />
         </>
       );
     }
@@ -1702,17 +1506,29 @@ export default function MakerPage() {
       <EditorSection
         id="section-profile"
         title="基本信息"
-        description="把抬头区域做厚一点，头像、主标题、联系方式和补充字段都可以自由组合。"
+        description=""
         hidden={workspaceMode !== 'content'}
         {...getEditorSectionProps('section-profile')}
       >
         <div className="paperjump-maker__profile-grid">
           <div className="paperjump-maker__avatar-panel">
-            <div className="paperjump-maker__avatar-preview">
+            <div
+              className={[
+                'paperjump-maker__avatar-preview',
+                draft.profile.avatar
+                  ? 'paperjump-maker__avatar-preview--filled'
+                  : 'paperjump-maker__avatar-preview--empty',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
               {draft.profile.avatar ? (
                 <img src={draft.profile.avatar} alt={draft.profile.fullName || '头像'} />
               ) : (
-                <span>{draft.profile.fullName?.slice(0, 1) || '纸'}</span>
+                <span className="paperjump-maker__avatar-empty">
+                  <UserOutlined />
+                  <small>未上传头像</small>
+                </span>
               )}
             </div>
             <div className="paperjump-maker__avatar-actions">
@@ -1787,9 +1603,7 @@ export default function MakerPage() {
               <div className="paperjump-maker__subsection-head">
                 <div>
                   <Typography.Title level={5}>补充信息</Typography.Title>
-                  <Typography.Text type="secondary">
-                    像求职状态、GitHub、微信、年龄这些都可以按自己的方式加进来。
-                  </Typography.Text>
+                  <Typography.Text type="secondary">求职状态、链接或其他补充信息。</Typography.Text>
                 </div>
                 <Button icon={<PlusOutlined />} onClick={addProfileFact}>
                   添加字段
@@ -1838,7 +1652,7 @@ export default function MakerPage() {
           key={key}
           id="section-summary"
           title="个人简介"
-          description="推荐按段落写，不用刻意缩成一句话；右侧会按自然段展示。"
+          description=""
           hidden={workspaceMode !== 'content' || !draft.visibleSections.summary}
           {...getEditorSectionProps('section-summary')}
         >
@@ -1860,7 +1674,7 @@ export default function MakerPage() {
           key={key}
           id="section-education"
           title="教育经历"
-          description="不仅能写学校和专业，也能把成绩、课程、交换经历拆成多行。"
+          description=""
           hidden={workspaceMode !== 'content' || !draft.visibleSections.education}
           {...getEditorSectionProps('section-education')}
           extra={(
@@ -1932,7 +1746,7 @@ export default function MakerPage() {
           key={key}
           id="section-experience"
           title="工作经历"
-          description="按自然表达直接写就行，建议一行一条经历要点，右侧会自动排成列表。"
+          description=""
           hidden={workspaceMode !== 'content' || !draft.visibleSections.experience}
           {...getEditorSectionProps('section-experience')}
           extra={(
@@ -1998,7 +1812,7 @@ export default function MakerPage() {
           key={key}
           id="section-projects"
           title="项目经历"
-          description="项目不只面向技术岗位。把链接和关键词作为补充，项目描述直接写清楚做了什么。"
+          description=""
           hidden={workspaceMode !== 'content' || !draft.visibleSections.projects}
           {...getEditorSectionProps('section-projects')}
           extra={(
@@ -2079,7 +1893,7 @@ export default function MakerPage() {
           key={key}
           id="section-skills"
           title="技能清单"
-          description="如果是一行一个关键词会显示成标签；如果写成长句，就会按列表展示。"
+          description=""
           hidden={workspaceMode !== 'content' || !draft.visibleSections.skills}
           {...getEditorSectionProps('section-skills')}
         >
@@ -2100,7 +1914,7 @@ export default function MakerPage() {
         key={key}
         id="section-awards"
         title="奖项 / 补充信息"
-        description="这里不必只写奖项，也可以放证书、语言、开源贡献或补充说明。"
+        description=""
         hidden={workspaceMode !== 'content' || !draft.visibleSections.awards}
         {...getEditorSectionProps('section-awards')}
       >
@@ -2121,6 +1935,7 @@ function renderCustomPreviewSection(item: CustomSection) {
     <ResumePreviewSection
       key={item.id}
       sectionId="section-custom"
+      sectionKey="custom"
       title={item.title || '自定义模块'}
       className={getPreviewSectionClassName('awards', currentTemplateRecipe?.code, previewLayoutVariant)}
       active={activeSectionId === 'section-custom'}
@@ -2136,13 +1951,30 @@ function renderCustomPreviewSection(item: CustomSection) {
   );
 }
 
+  function getPreviewSectionTitle(key: ResumeSectionKey) {
+    if (key === 'summary') {
+      return '个人总结';
+    }
+
+    if (key === 'skills') {
+      return '技能';
+    }
+
+    if (key === 'awards') {
+      return '补充信息';
+    }
+
+    return builtInSectionMeta[key]?.label ?? '简历内容';
+  }
+
   function renderBuiltInPreviewSection(key: ResumeSectionKey) {
     if (key === 'summary' && draft.visibleSections.summary && draft.summary.trim()) {
       return (
         <ResumePreviewSection
           key={key}
           sectionId="section-summary"
-          title="个人简介"
+          sectionKey={key}
+          title={getPreviewSectionTitle(key)}
           className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-summary'}
           onClick={() => scrollToSection('section-summary')}
@@ -2157,7 +1989,8 @@ function renderCustomPreviewSection(item: CustomSection) {
         <ResumePreviewSection
           key={key}
           sectionId="section-education"
-          title="教育经历"
+          sectionKey={key}
+          title={getPreviewSectionTitle(key)}
           className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-education'}
           onClick={() => scrollToSection('section-education')}
@@ -2166,8 +1999,10 @@ function renderCustomPreviewSection(item: CustomSection) {
             <PreviewTimelineItem
               key={item.id}
               title={item.school}
-              subtitle={[item.major, item.degree].filter(Boolean).join(' ｜ ')}
+              subtitle={item.major}
+              subtitleSecondary={previewLayoutVariant === 'centered-blue' ? item.degree : undefined}
               duration={joinDuration(item.startDate, item.endDate)}
+              sideNote={previewLayoutVariant !== 'centered-blue' ? item.degree : undefined}
               description={item.description}
             />
           ))}
@@ -2180,7 +2015,8 @@ function renderCustomPreviewSection(item: CustomSection) {
         <ResumePreviewSection
           key={key}
           sectionId="section-experience"
-          title="工作经历"
+          sectionKey={key}
+          title={getPreviewSectionTitle(key)}
           className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-experience'}
           onClick={() => scrollToSection('section-experience')}
@@ -2203,7 +2039,8 @@ function renderCustomPreviewSection(item: CustomSection) {
         <ResumePreviewSection
           key={key}
           sectionId="section-projects"
-          title="项目经历"
+          sectionKey={key}
+          title={getPreviewSectionTitle(key)}
           className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-projects'}
           onClick={() => scrollToSection('section-projects')}
@@ -2214,7 +2051,7 @@ function renderCustomPreviewSection(item: CustomSection) {
               title={item.name}
               subtitle={item.role}
               duration={joinDuration(item.startDate, item.endDate)}
-              meta={renderProjectMeta(item)}
+              meta={renderProjectMeta(item, currentTemplateRecipe?.code)}
               content={renderBulletLines(item.highlights.length ? item.highlights : splitLines(item.description))}
             />
           ))}
@@ -2227,12 +2064,13 @@ function renderCustomPreviewSection(item: CustomSection) {
         <ResumePreviewSection
           key={key}
           sectionId="section-skills"
-          title="技能清单"
+          sectionKey={key}
+          title={getPreviewSectionTitle(key)}
           className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-skills'}
           onClick={() => scrollToSection('section-skills')}
         >
-          {renderSkillsPreview(draft.skills)}
+          {renderSkillsPreview(draft.skills, currentTemplateRecipe?.code)}
         </ResumePreviewSection>
       );
     }
@@ -2242,7 +2080,8 @@ function renderCustomPreviewSection(item: CustomSection) {
         <ResumePreviewSection
           key={key}
           sectionId="section-awards"
-          title="奖项 / 补充信息"
+          sectionKey={key}
+          title={getPreviewSectionTitle(key)}
           className={getPreviewSectionClassName(key, currentTemplateRecipe?.code, previewLayoutVariant)}
           active={activeSectionId === 'section-awards'}
           onClick={() => scrollToSection('section-awards')}
@@ -2259,13 +2098,13 @@ function renderCustomPreviewSection(item: CustomSection) {
     <div className="paperjump-maker">
       <header className="paperjump-maker__header">
         <div className="paperjump-maker__shell paperjump-maker__header-inner">
-          <div className="paperjump-maker__brand">
+          <button type="button" className="paperjump-maker__brand" onClick={() => history.push('/')}>
             <div className="paperjump-maker__brand-mark">纸</div>
             <div>
               <strong>{productName}</strong>
-              <span>边写边排的专业简历编辑器</span>
+              <span>在线简历工作台</span>
             </div>
-          </div>
+          </button>
           <div className="paperjump-maker__header-actions">
             <Button
               className="paperjump-maker__header-btn paperjump-maker__header-btn--quiet"
@@ -2273,13 +2112,6 @@ function renderCustomPreviewSection(item: CustomSection) {
               onClick={() => history.push('/resumes')}
             >
               返回简历库
-            </Button>
-            <Button
-              className="paperjump-maker__header-btn paperjump-maker__header-btn--quiet"
-              icon={<HomeOutlined />}
-              onClick={() => history.push('/')}
-            >
-              返回首页
             </Button>
             <Button
               className="paperjump-maker__header-btn paperjump-maker__header-btn--secondary"
@@ -2295,7 +2127,7 @@ function renderCustomPreviewSection(item: CustomSection) {
             <Popconfirm
               open={confirmNewDraftOpen}
               title="开始一份新的简历？"
-              description="当前这份会保留在简历库里，下一步会先去模板中心选择版式。"
+              description="当前这份会保留在简历库里，接下来去模板中心选择版式。"
               okText="去选模板"
               cancelText="取消"
               onConfirm={handleCreateNewDraft}
@@ -2320,15 +2152,17 @@ function renderCustomPreviewSection(item: CustomSection) {
             <div className="paperjump-maker__sidebar-head">
               <div className="paperjump-maker__sidebar-head-copy">
                 <Typography.Title level={4}>
-                  {workspaceMode === 'style' ? '样式设置' : '写作大纲'}
+                  {workspaceMode === 'style' ? '排版' : '写作'}
                 </Typography.Title>
                 <Typography.Text type="secondary">
-                  {workspaceMode === 'style' ? '模板、字体和页面节奏' : '按模块顺序编辑当前简历'}
+                  {workspaceMode === 'style' ? '字体、字号与间距' : '按顺序补全简历内容'}
                 </Typography.Text>
               </div>
-              <div className="paperjump-maker__sidebar-head-meta">
-                <span className="paperjump-maker__sidebar-head-note">{sidebarMetaLabel}</span>
-              </div>
+              {sidebarMetaLabel ? (
+                <div className="paperjump-maker__sidebar-head-meta">
+                  <span className="paperjump-maker__sidebar-head-note">{sidebarMetaLabel}</span>
+                </div>
+              ) : null}
             </div>
 
             <div className="paperjump-maker__section-nav">{renderSidebarRows()}</div>
@@ -2375,7 +2209,7 @@ function renderCustomPreviewSection(item: CustomSection) {
                   onClick={() => handleWorkspaceModeChange('style')}
                 >
                   <BgColorsOutlined />
-                  <span>样式</span>
+                  <span>排版</span>
                 </button>
               </div>
               <div className="paperjump-maker__editor-toolbar-meta">
@@ -2413,14 +2247,13 @@ function renderCustomPreviewSection(item: CustomSection) {
           <div className="paperjump-maker__editor-scroll" ref={editorScrollRef}>
             <div className="paperjump-maker__form-sections">
               {renderStyleSections()}
-              {renderContentBoard()}
               {renderProfileSection()}
               {orderedSections.map((section) => renderBuiltInEditorSection(section.key))}
 
               <EditorSection
                 id="section-custom"
                 title="自定义模块"
-                description="研究经历、校园经历、个人作品、志愿服务，或者任何默认模块之外的内容，都可以放在这里。"
+                description=""
                 hidden={workspaceMode !== 'content'}
                 {...getEditorSectionProps('section-custom')}
                 extra={(
@@ -2506,7 +2339,7 @@ function renderCustomPreviewSection(item: CustomSection) {
                   </div>
                 ) : (
                   <div className="paperjump-maker__subsection-empty">
-                    先把默认模块写好也可以；需要扩展时，再加自定义模块就行。
+                    需要时再添加自定义模块。
                   </div>
                 )}
               </EditorSection>
@@ -2518,14 +2351,14 @@ function renderCustomPreviewSection(item: CustomSection) {
           <div className="paperjump-maker__preview-inner">
             <div className="paperjump-maker__preview-head">
               <div className="paperjump-maker__preview-copy">
-                <Typography.Title level={5}>纸面预览</Typography.Title>
+                <Typography.Title level={5}>实时预览</Typography.Title>
                 <Typography.Text type="secondary">
-                  A4 文档视图
+                  A4 实时排版
                 </Typography.Text>
               </div>
               <div className="paperjump-maker__preview-meta">
                 <span className="paperjump-maker__preview-focus">
-                  {workspaceMode === 'style' ? '样式预览' : activeSectionLabel}
+                  {workspaceMode === 'style' ? '纸面预览' : activeSectionLabel}
                 </span>
               </div>
             </div>
@@ -2538,105 +2371,45 @@ function renderCustomPreviewSection(item: CustomSection) {
                 `paperjump-maker__preview-paper--accent-${draft.accentTone}`,
                 `paperjump-maker__preview-paper--title-${draft.titleStyle}`,
                 `paperjump-maker__preview-paper--variant-${previewLayoutVariant}`,
-                currentTemplateRecipe?.code
-                  ? `paperjump-maker__preview-paper--template-${currentTemplateRecipe.code}`
-                  : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
               style={previewPaperStyle}
             >
-              <div>
-                <div
-                  className={[
-                    'paperjump-maker__resume-header',
-                    `paperjump-maker__resume-header--${previewLayoutVariant}`,
-                  ].join(' ')}
-                  data-resume-section="section-profile"
-                  onClick={() => scrollToSection('section-profile')}
-                >
-                  <div className="paperjump-maker__resume-header-main">
-                    <div className="paperjump-maker__resume-header-copy">
-                      <Typography.Title level={2}>
-                        {draft.profile.fullName || '你的名字'}
-                      </Typography.Title>
-                      <Typography.Text className="paperjump-maker__resume-headline">
-                        {draft.profile.headline}
-                      </Typography.Text>
-                    </div>
-                    {draft.profile.avatar ? (
-                      <div className="paperjump-maker__resume-avatar">
-                        <img src={draft.profile.avatar} alt={draft.profile.fullName || '头像'} />
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="paperjump-maker__resume-meta">
-                    {headerMetaItems.map((item) => (
-                      <span key={item} className="paperjump-maker__resume-meta-item">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {useSidebarPreview ? (
-                  <div className="paperjump-maker__resume-layout paperjump-maker__resume-layout--sidebar">
-                    <aside className="paperjump-maker__resume-sidebar">
-                      {sidebarPreviewSections.map((item) => item.node)}
-                    </aside>
-                    <div className="paperjump-maker__resume-main">
-                      {mainPreviewSections.map((item) => item.node)}
-                      {customPreviewSections}
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className={[
-                      'paperjump-maker__resume-layout',
-                      `paperjump-maker__resume-layout--${previewLayoutVariant}`,
-                    ].join(' ')}
-                  >
-                    {mainPreviewSections.map((item) => item.node)}
-                    {customPreviewSections}
-                  </div>
-                )}
-              </div>
+              <div>{renderResumePreviewLayout()}</div>
             </div>
           </div>
         </aside>
       </div>
 
       <Drawer
-        title="文档操作"
+        title="导出"
         placement="right"
         width={360}
+        rootClassName="paperjump-maker__export-drawer"
         open={exportDrawerOpen}
         onClose={() => setExportDrawerOpen(false)}
       >
         <div className="paperjump-maker__export-panel">
-          <Typography.Paragraph>
-            这里收纳导出、备份和恢复，先确认右侧纸面就是你想要的版本再操作。
-          </Typography.Paragraph>
-
           <div className="paperjump-maker__export-section">
             <div className="paperjump-maker__export-section-head">
               <strong>导出成品</strong>
-              <span>用于投递、打印和快速粘贴。</span>
+              <span>PDF / 文本</span>
             </div>
             <div className="paperjump-maker__export-stack">
               <ExportActionCard
                 icon={<FilePdfOutlined />}
-                title="下载 PDF 成品"
-                description="直接按当前纸面预览生成正式 PDF，内容偏长时会自动分页。"
+                title="下载 PDF"
+                description="按当前纸面生成 PDF。"
                 onClick={handleExportPdf}
                 disabled={isPdfExporting}
                 statusText={isPdfExporting ? '生成中...' : '推荐'}
+                loading={isPdfExporting}
               />
               <ExportActionCard
                 icon={<CopyOutlined />}
                 title="复制纯文本"
-                description="把当前内容整理成纯文本版，方便投递平台或即时粘贴。"
+                description="复制当前文案内容。"
                 onClick={handleCopyPlainText}
                 disabled={isPdfExporting}
               />
@@ -2645,31 +2418,30 @@ function renderCustomPreviewSection(item: CustomSection) {
 
           <div className="paperjump-maker__export-section">
             <div className="paperjump-maker__export-section-head">
-              <strong>备份与恢复</strong>
-              <span>跨设备继续写，或者保留一个安全副本。</span>
+              <strong>备份草稿</strong>
+              <span>JSON</span>
             </div>
             <div className="paperjump-maker__export-stack">
               <ExportActionCard
                 icon={<DownloadOutlined />}
-                title="下载 JSON 备份"
-                description="把当前草稿完整备份下来，之后可以重新导回或迁移。"
+                title="下载 JSON"
+                description="保存当前草稿备份。"
                 onClick={handleExportJson}
                 disabled={isPdfExporting}
               />
               <Upload
+                className="paperjump-maker__export-upload"
                 accept=".json,application/json"
                 showUploadList={false}
                 beforeUpload={(file) => handleImportJson(file as File)}
               >
-                <div>
-                  <ExportActionCard
-                    icon={<UploadOutlined />}
-                    title="导回 JSON 草稿"
-                    description="把之前下载的 JSON 备份重新恢复到当前草稿，适合换设备继续写。"
-                    onClick={() => undefined}
-                    disabled={isPdfExporting}
-                  />
-                </div>
+                <ExportActionCard
+                  icon={<UploadOutlined />}
+                  title="导入 JSON"
+                  description="恢复之前保存的草稿。"
+                  onClick={() => undefined}
+                  disabled={isPdfExporting}
+                />
               </Upload>
             </div>
           </div>
@@ -2681,13 +2453,13 @@ function renderCustomPreviewSection(item: CustomSection) {
               </Typography.Text>
             </div>
             <Button
-              type="text"
+              type="default"
               size="small"
               icon={<PrinterOutlined />}
               onClick={handlePrintExport}
               disabled={isPdfExporting}
             >
-              仍可使用浏览器打印
+              浏览器打印
             </Button>
           </div>
         </div>
@@ -2729,7 +2501,7 @@ function GuidedTextarea(props: {
 
 function RangeSetting(props: {
   label: string;
-  hint: string;
+  hint?: string;
   min: number;
   max: number;
   step: number;
@@ -2755,7 +2527,7 @@ function RangeSetting(props: {
       <div className="paperjump-maker__range-head">
         <div>
           <strong>{label}</strong>
-          <span className="paperjump-maker__range-description">{hint}</span>
+          {hint ? <span className="paperjump-maker__range-description">{hint}</span> : null}
         </div>
         <span className="paperjump-maker__range-value">
           {value.toFixed(precision)}
@@ -2773,33 +2545,10 @@ function RangeSetting(props: {
   );
 }
 
-function TemplateRecipePreview(props: { recipe: ResumeTemplate }) {
-  const { recipe } = props;
-  const accentColor =
-    accentOptions.find((item) => item.key === recipe.settings.accentTone)?.color ?? '#2151ff';
-
-  return (
-    <div
-      className={[
-        'paperjump-maker__template-preview',
-        `paperjump-maker__template-preview--${recipe.settings.layoutPreset}`,
-      ].join(' ')}
-      style={
-        {
-          '--template-accent': accentColor,
-        } as CSSProperties
-      }
-    >
-      <TemplatePaperPreview template={recipe} mode="picker" />
-      <span className="paperjump-maker__template-preview-accent" />
-    </div>
-  );
-}
-
 function EditorSection(props: {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
   extra?: ReactNode;
   hidden?: boolean;
@@ -2852,9 +2601,11 @@ function EditorSection(props: {
             ) : null}
           </div>
         </div>
-        <Typography.Paragraph className="paperjump-maker__section-head-description">
-          {description}
-        </Typography.Paragraph>
+        {description ? (
+          <Typography.Paragraph className="paperjump-maker__section-head-description">
+            {description}
+          </Typography.Paragraph>
+        ) : null}
       </div>
       {collapsed ? null : children}
     </section>
@@ -2983,16 +2734,18 @@ function ResumePreviewSection(props: {
   title: string;
   children: ReactNode;
   sectionId?: string;
+  sectionKey?: ResumeSectionKey | 'custom';
   active?: boolean;
   className?: string;
   onClick?: () => void;
 }) {
-  const { title, children, sectionId, active, className, onClick } = props;
+  const { title, children, sectionId, sectionKey, active, className, onClick } = props;
 
   return (
     <section
       className={[
         'paperjump-maker__resume-section',
+        sectionKey ? `paperjump-maker__resume-section--kind-${sectionKey}` : '',
         active ? 'paperjump-maker__resume-section--active' : '',
         className,
       ]
@@ -3014,25 +2767,37 @@ function ExportActionCard(props: {
   onClick: () => void | Promise<void>;
   disabled?: boolean;
   statusText?: string;
+  loading?: boolean;
 }) {
-  const { icon, title, description, onClick, disabled, statusText } = props;
+  const { icon, title, description, onClick, disabled, statusText, loading } = props;
 
   return (
     <button
       type="button"
-      className="paperjump-maker__export-action"
+      className={[
+        'paperjump-maker__export-action',
+        loading ? 'paperjump-maker__export-action--loading' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       onClick={() => void onClick()}
       disabled={disabled}
+      aria-busy={loading}
     >
-      <span className="paperjump-maker__export-action-icon">{icon}</span>
+      <span className="paperjump-maker__export-action-icon">
+        {loading ? <LoadingOutlined spin /> : icon}
+      </span>
       <span className="paperjump-maker__export-action-copy">
-        <strong>
-          {title}
+        <span className="paperjump-maker__export-action-head">
+          <strong>{title}</strong>
           {statusText ? (
             <em className="paperjump-maker__export-action-status">{statusText}</em>
           ) : null}
-        </strong>
-        <span>{description}</span>
+        </span>
+        <small>{description}</small>
+      </span>
+      <span className="paperjump-maker__export-action-arrow" aria-hidden="true">
+        <RightOutlined />
       </span>
     </button>
   );
@@ -3041,23 +2806,35 @@ function ExportActionCard(props: {
 function PreviewTimelineItem(props: {
   title?: string;
   subtitle?: string;
+  subtitleSecondary?: string;
   duration?: string;
+  sideNote?: string;
   meta?: ReactNode;
   description?: string;
   content?: ReactNode;
 }) {
-  const { title, subtitle, duration, meta, description, content } = props;
+  const { title, subtitle, subtitleSecondary, duration, sideNote, meta, description, content } = props;
   const detail = description?.trim();
 
   return (
     <div className="paperjump-maker__timeline-item">
-      {(title || subtitle || duration) ? (
+      {(title || subtitle || subtitleSecondary || duration || sideNote) ? (
         <div className="paperjump-maker__timeline-head">
           <div className="paperjump-maker__timeline-head-main">
             <strong className="paperjump-maker__timeline-title">{title || '未填写内容'}</strong>
             {subtitle ? <span className="paperjump-maker__timeline-subtitle">{subtitle}</span> : null}
+            {subtitleSecondary ? (
+              <span className="paperjump-maker__timeline-subtitle paperjump-maker__timeline-subtitle--secondary">
+                {subtitleSecondary}
+              </span>
+            ) : null}
           </div>
-          {duration ? <em className="paperjump-maker__timeline-duration">{duration}</em> : null}
+          {(duration || sideNote) ? (
+            <div className="paperjump-maker__timeline-side">
+              {duration ? <em className="paperjump-maker__timeline-duration">{duration}</em> : null}
+              {sideNote ? <span className="paperjump-maker__timeline-side-note">{sideNote}</span> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
       {meta ? <div className="paperjump-maker__timeline-meta">{meta}</div> : null}
@@ -3087,16 +2864,12 @@ function isStyleSectionId(sectionId: string) {
 }
 
 function getSectionDisplayLabel(sectionId: string, customSectionCount: number) {
-  if (sectionId === 'section-layout-recipes') {
-    return '模板方案';
-  }
-
   if (sectionId === 'section-layout-type') {
-    return '字体与标题';
+    return '字体与颜色';
   }
 
   if (sectionId === 'section-layout-spacing') {
-    return '页面节奏';
+    return '字号与间距';
   }
 
   if (sectionId === 'section-profile') {
@@ -3597,21 +3370,6 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function findActiveStyleRecipe(draft: ResumeDraft, recipes: ResumeTemplate[]) {
-  return (
-    recipes.find((option) =>
-      styleRecipeSettingKeys.every((key) => draft[key] === option.settings[key]),
-    ) ?? null
-  );
-}
-
-function buildTemplateSummary(template: ResumeTemplate) {
-  const layoutLabel =
-    template.settings.layoutPreset === 'compact' ? '紧凑模式' : '经典单栏';
-  const accentLabel = accentOptions.find((item) => item.key === template.settings.accentTone)?.label ?? '钴蓝';
-  return `${layoutLabel} · ${accentLabel} · ${template.mood}`;
-}
-
 function getPreviewSectionClassName(
   key: ResumeSectionKey,
   templateCode: string | null | undefined,
@@ -3637,7 +3395,11 @@ function formatProjectLinkLabel(value: string) {
   return value.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '');
 }
 
-function renderProjectMeta(item: ProjectEntry) {
+function renderProjectMeta(item: ProjectEntry, templateCode?: string | null) {
+  if (templateCode && isVisibleTemplateCode(templateCode)) {
+    return null;
+  }
+
   const hasTechStack = item.techStack.length > 0;
   const hasLink = Boolean(item.link.trim());
 
@@ -3669,17 +3431,6 @@ function renderProjectMeta(item: ProjectEntry) {
     </div>
   );
 }
-
-const styleRecipeSettingKeys: Array<keyof StyleRecipeSettings> = [
-  'layoutPreset',
-  'accentTone',
-  'fontFamily',
-  'titleStyle',
-  'bodyFontSize',
-  'lineHeight',
-  'pagePadding',
-  'sectionSpacing',
-];
 
 function createDownloadFilename(title: string, extension: 'json' | 'txt' | 'pdf') {
   const normalizedTitle = title
@@ -3915,11 +3666,18 @@ function getReadableExportError(error: unknown) {
     return '简历里可能有跨域图片，先移除外链头像或图片后再试一次。';
   }
 
+  if (
+    normalizedMessage.includes('unsupported color function') ||
+    normalizedMessage.includes('color(')
+  ) {
+    return '当前纸面样式里有暂不支持的颜色效果，请刷新页面后再试一次。';
+  }
+
   if (normalizedMessage.includes('canvas')) {
     return '预览转图片时失败了，刷新页面后再试一次。';
   }
 
-  return `PDF 导出失败：${rawMessage}`;
+  return '导出时遇到一点问题，请刷新页面后再试一次。';
 }
 
 function buildResumePlainText(draft: ResumeDraft) {
@@ -4103,8 +3861,87 @@ function renderStructuredContent(value: string) {
   return <Typography.Paragraph>{normalizeBulletLine(value.trim())}</Typography.Paragraph>;
 }
 
-function renderSkillsPreview(value: string) {
+function renderSkillsPreview(value: string, templateCode?: string | null) {
   const lines = splitLines(value);
+  const skillBlocks =
+    templateCode === 'campus-launch'
+      ? lines
+          .map((line) => line.split('｜').map((item) => item.trim()))
+          .filter((parts) => parts.length >= 3)
+          .map(([title, score, description]) => ({
+            title,
+            score: Number(score),
+            description,
+          }))
+          .filter((item) => item.title && item.description && !Number.isNaN(item.score))
+      : [];
+
+  if (skillBlocks.length) {
+    return (
+      <div className="paperjump-maker__skill-panels">
+        {skillBlocks.map((item) => (
+          <div key={item.title} className="paperjump-maker__skill-panel">
+            <div className="paperjump-maker__skill-panel-head">
+              <strong>{item.title}</strong>
+              <div className="paperjump-maker__skill-rating" aria-hidden="true">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <span
+                    key={`${item.title}-${index}`}
+                    className={
+                      index < item.score
+                        ? 'paperjump-maker__skill-rating-dot paperjump-maker__skill-rating-dot--filled'
+                        : 'paperjump-maker__skill-rating-dot'
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+            <p>{item.description}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (templateCode && isVisibleTemplateCode(templateCode)) {
+    const groupedLines = lines
+      .map((line) => {
+        const match = line.match(/^([^｜:：]{1,20})[｜:：]\s*(.+)$/);
+        if (!match) {
+          return null;
+        }
+
+        return {
+          title: match[1].trim(),
+          description: match[2].trim(),
+        };
+      })
+      .filter((item): item is { title: string; description: string } => Boolean(item));
+
+    if (groupedLines.length === lines.length && groupedLines.length > 0) {
+      return (
+        <div className="paperjump-maker__skill-groups">
+          {groupedLines.map((item) => (
+            <div key={`${item.title}-${item.description}`} className="paperjump-maker__skill-group">
+              <strong className="paperjump-maker__skill-group-title">{item.title}</strong>
+              <p className="paperjump-maker__skill-group-text">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="paperjump-maker__skill-list paperjump-maker__skill-list--stacked">
+        {lines.map((item, index) => (
+          <p key={`${index}-${item}`} className="paperjump-maker__skill-line">
+            {item}
+          </p>
+        ))}
+      </div>
+    );
+  }
+
   const shouldUseTags = lines.every(
     (item) => item.length <= 18 && !/[：:，,。；;]/.test(item),
   );

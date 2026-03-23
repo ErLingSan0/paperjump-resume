@@ -1,25 +1,54 @@
 <svg width="900" height="1260" viewBox="0 0 900 1260" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="900" height="1260" rx="40" fill="#F4F2EE"/>
-  <rect x="48" y="48" width="804" height="1164" rx="28" fill="white" stroke="#E5E0DA"/>
-  <text x="450" y="154" fill="#101418" font-size="44" font-family="Georgia" font-weight="700" text-anchor="middle">Executive Brief</text>
-  <text x="450" y="196" fill="#6B7280" font-size="18" font-family="Arial" text-anchor="middle">consulting / management / strategy</text>
-  <rect x="188" y="236" width="524" height="1" fill="#101418"/>
-  <rect x="112" y="284" width="196" height="14" rx="7" fill="#101418"/>
-  <rect x="112" y="324" width="676" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="112" y="350" width="652" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="112" y="376" width="664" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="112" y="438" width="676" height="200" rx="24" fill="#FAF8F5" stroke="#ECE7E0"/>
-  <rect x="144" y="474" width="172" height="12" rx="6" fill="#101418"/>
-  <rect x="144" y="510" width="612" height="10" rx="5" fill="#E5E0DA"/>
-  <rect x="144" y="536" width="598" height="10" rx="5" fill="#E5E0DA"/>
-  <rect x="144" y="562" width="576" height="10" rx="5" fill="#E5E0DA"/>
-  <rect x="112" y="692" width="196" height="14" rx="7" fill="#101418"/>
-  <rect x="112" y="732" width="676" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="112" y="758" width="652" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="112" y="784" width="664" height="10" rx="5" fill="#E5E7EB"/>
-  <rect x="112" y="846" width="676" height="220" rx="24" fill="#FAF8F5" stroke="#ECE7E0"/>
-  <rect x="144" y="882" width="172" height="12" rx="6" fill="#101418"/>
-  <rect x="144" y="918" width="612" height="10" rx="5" fill="#E5E0DA"/>
-  <rect x="144" y="944" width="598" height="10" rx="5" fill="#E5E0DA"/>
-  <rect x="144" y="970" width="576" height="10" rx="5" fill="#E5E0DA"/>
+  <rect width="900" height="1260" fill="#F5F4F1"/>
+  <rect x="18" y="18" width="864" height="1224" fill="white"/>
+  <rect x="18" y="18" width="864" height="328" fill="#EEF3FB"/>
+  <rect x="392" y="68" width="116" height="140" rx="10" fill="transparent"/>
+  <image
+    href="/template-avatars/pony-office.jpg"
+    x="392"
+    y="68"
+    width="116"
+    height="140"
+    preserveAspectRatio="xMidYMid slice"
+    clip-path="url(#executiveAvatarClip)"
+  />
+
+  <text x="450" y="250" text-anchor="middle" fill="#2E62D4" font-size="52" font-family="'PingFang SC','Microsoft YaHei',sans-serif" font-weight="700">宋野</text>
+  <g fill="#20242C" font-size="15.5" font-family="'PingFang SC','Microsoft YaHei',sans-serif">
+    <text x="220" y="292" text-anchor="middle">地址：上海</text>
+    <text x="450" y="292" text-anchor="middle">电话：+86 13800138000</text>
+    <text x="680" y="292" text-anchor="middle">邮箱：songye@example.com</text>
+  </g>
+
+  <g font-family="'PingFang SC','Microsoft YaHei',sans-serif">
+    <text x="50" y="392" fill="#2E62D4" font-size="34" font-weight="700">教育经历</text>
+    <line x1="50" y1="406" x2="826" y2="406" stroke="#2E62D4" stroke-width="3"/>
+    <text x="50" y="442" fill="#13151A" font-size="24" font-weight="700">上海交通大学</text>
+    <text x="50" y="476" fill="#20242C" font-size="20">市场营销</text>
+    <text x="826" y="442" text-anchor="end" fill="#13151A" font-size="20" font-weight="700">2015-09 - 2018-06</text>
+    <text x="826" y="472" text-anchor="end" fill="#13151A" font-size="18">硕士</text>
+    <text x="72" y="522" fill="#1F232A" font-size="18">•  主修市场营销策略、消费者行为学、品牌管理、数字营销等课程。</text>
+    <text x="72" y="554" fill="#1F232A" font-size="18">•  参与多项市场调研项目，深入分析市场趋势与用户需求。</text>
+    <text x="72" y="586" fill="#1F232A" font-size="18">•  论文研究方向：《基于社交媒体的私域流量构建与转化研究》。</text>
+
+    <text x="50" y="692" fill="#2E62D4" font-size="34" font-weight="700">工作经历</text>
+    <line x1="50" y1="706" x2="826" y2="706" stroke="#2E62D4" stroke-width="3"/>
+    <text x="50" y="760" fill="#13151A" font-size="24" font-weight="700">某知名互联网公司</text>
+    <text x="50" y="794" fill="#20242C" font-size="20">私域流量运营专家</text>
+    <text x="826" y="760" text-anchor="end" fill="#13151A" font-size="20" font-weight="700">2021-08 - 2024-05</text>
+    <text x="72" y="842" fill="#1F232A" font-size="18">•  主导搭建并优化公司直营私域流量运营体系，通过内容推荐与互动机制实现用户活跃度提升。</text>
+    <text x="72" y="874" fill="#1F232A" font-size="18">•  负责规划并实施企业微信运营策略，在 6 个月内将企业微信好友总量提升至 50 万+。</text>
+    <text x="72" y="906" fill="#1F232A" font-size="18">•  设计并落地社群分层 SOP，根据用户生命周期与价值贡献进行精细化运营。</text>
+    <text x="72" y="938" fill="#1F232A" font-size="18">•  通过数据分析确定用户痛点，优化产品功能与营销动作，推动增长目标落到执行层。</text>
+
+    <text x="50" y="1048" fill="#2E62D4" font-size="34" font-weight="700">个人总结</text>
+    <line x1="50" y1="1062" x2="826" y2="1062" stroke="#2E62D4" stroke-width="3"/>
+    <text x="50" y="1114" fill="#20242C" font-size="19">资深私域流量运营专家，精通内容运营、企业微信运营体系搭建与优化，擅长社群分层 SOP 制定</text>
+    <text x="50" y="1146" fill="#20242C" font-size="19">及全生命周期转化策略，具备出色的数据分析能力和用户洞察力，能将增长目标落到执行动作。</text>
+  </g>
+  <defs>
+    <clipPath id="executiveAvatarClip">
+      <rect x="392" y="68" width="116" height="140" rx="10" />
+    </clipPath>
+  </defs>
 </svg>

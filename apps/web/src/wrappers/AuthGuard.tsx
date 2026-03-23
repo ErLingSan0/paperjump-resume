@@ -53,10 +53,8 @@ export default function AuthGuard(props: { children: ReactNode }) {
       <>
         <div className="paperjump-auth-gate">
           <div className="paperjump-auth-gate__card">
-            <Typography.Title level={3}>登录后继续</Typography.Title>
-            <Typography.Paragraph>
-              当前内容需要登录后查看，认证完成后会直接回到这里。
-            </Typography.Paragraph>
+            <Typography.Title level={3}>请先登录</Typography.Title>
+            <Typography.Paragraph>登录后回到当前页面。</Typography.Paragraph>
             <Button
               type="primary"
               size="large"
@@ -66,7 +64,7 @@ export default function AuthGuard(props: { children: ReactNode }) {
                 setOpen(true);
               }}
             >
-              打开登录
+              登录 / 注册
             </Button>
           </div>
         </div>

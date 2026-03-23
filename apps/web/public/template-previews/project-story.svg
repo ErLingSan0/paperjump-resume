@@ -2,8 +2,8 @@
   <rect width="900" height="1260" rx="40" fill="#F7F5F1"/>
   <rect x="48" y="48" width="804" height="1164" rx="28" fill="white" stroke="#EEE3D8"/>
   <rect x="96" y="96" width="708" height="170" rx="30" fill="#FFF3EA"/>
-  <text x="132" y="162" fill="#8F4D2E" font-size="18" font-family="Arial" font-weight="700">PROJECT / DELIVERY</text>
-  <text x="132" y="220" fill="#101418" font-size="44" font-family="Arial" font-weight="700">Project Story</text>
+  <text x="132" y="162" fill="#8F4D2E" font-size="18" font-family="Arial" font-weight="700">项目 / 案例表达</text>
+  <text x="132" y="220" fill="#101418" font-size="44" font-family="Arial" font-weight="700">项目展示版</text>
   <rect x="132" y="314" width="8" height="734" rx="4" fill="#FF9B65"/>
   <rect x="176" y="320" width="592" height="170" rx="24" fill="#FFF9F5" stroke="#F2E4D8"/>
   <rect x="208" y="356" width="170" height="12" rx="6" fill="#FF9B65"/>

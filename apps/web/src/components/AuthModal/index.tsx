@@ -4,7 +4,7 @@ import { history, useModel } from '@umijs/max';
 import { Button, Form, Input, Modal, Typography, message } from 'antd';
 
 import { login, queryCurrentUser, register } from '@/services/auth';
-import { getErrorMessage } from '@/utils/request';
+import { getErrorMessage, getErrorStatus } from '@/utils/request';
 
 export type AuthMode = 'login' | 'register';
 
@@ -19,6 +19,11 @@ type AuthModalProps = {
 export default function AuthModal(props: AuthModalProps) {
   const { open, mode, redirect, onClose, onModeChange } = props;
   const { setInitialState } = useModel('@@initialState');
+  const [form] = Form.useForm<{
+    email: string;
+    password: string;
+    displayName?: string;
+  }>();
   const [submitting, setSubmitting] = useState(false);
 
   const actionCopy = useMemo(
@@ -64,6 +69,11 @@ export default function AuthModal(props: AuthModalProps) {
     password: string;
     displayName?: string;
   }) {
+    form.setFields([
+      { name: 'email', errors: [] },
+      { name: 'password', errors: [] },
+      { name: 'displayName', errors: [] },
+    ]);
     setSubmitting(true);
 
     try {
@@ -88,6 +98,38 @@ export default function AuthModal(props: AuthModalProps) {
       onClose();
       history.replace(redirect || '/resumes');
     } catch (error) {
+      const status = getErrorStatus(error);
+
+      if (mode === 'login' && status === 401) {
+        form.setFields([
+          {
+            name: 'password',
+            errors: ['邮箱或密码不正确'],
+          },
+        ]);
+        return;
+      }
+
+      if (mode === 'login' && status === 403) {
+        form.setFields([
+          {
+            name: 'email',
+            errors: ['当前账号不可用，请联系管理员'],
+          },
+        ]);
+        return;
+      }
+
+      if (mode === 'register' && status === 409) {
+        form.setFields([
+          {
+            name: 'email',
+            errors: ['该邮箱已经注册过了'],
+          },
+        ]);
+        return;
+      }
+
       message.error(
         getErrorMessage(
           error,
@@ -150,6 +192,7 @@ export default function AuthModal(props: AuthModalProps) {
 
         <Form
           key={mode}
+          form={form}
           className="paperjump-auth-modal__form"
           layout="vertical"
           onFinish={handleSubmit}

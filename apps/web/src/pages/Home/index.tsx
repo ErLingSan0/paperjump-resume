@@ -105,8 +105,8 @@ export default function HomePage() {
     : '先选模板，再开始写。';
   const heroDescription = currentUser
     ? latestDraft
-      ? '首页只保留继续最近内容和新建入口，完整管理统一放在简历库里。'
-      : '从模板进入编辑器，边写边看纸面，内容会自动保存到你的账号。'
+      ? '继续最近一份，或者直接从模板再开一份。'
+      : '从模板开始第一份，内容会自动保存到你的账号。'
     : `${productName} 把模板选择、在线编辑、实时纸面预览和导出放在同一条路径里，让开始到成稿都更顺。`;
 
   function openAuthModal(mode: 'login' | 'register', redirect = '/resumes') {
@@ -241,17 +241,19 @@ export default function HomePage() {
                   {currentUser ? '打开简历库' : '登录 / 注册'}
                 </Button>
               </Space>
-              <div className="paperjump-home__hero-steps" aria-label="使用步骤">
-                {heroSteps.map((item, index) => (
-                  <div className="paperjump-home__hero-step" key={item.title}>
-                    <span className="paperjump-home__hero-step-index">0{index + 1}</span>
-                    <div>
-                      <strong>{item.title}</strong>
-                      <small>{item.description}</small>
+              {!currentUser ? (
+                <div className="paperjump-home__hero-steps" aria-label="使用步骤">
+                  {heroSteps.map((item, index) => (
+                    <div className="paperjump-home__hero-step" key={item.title}>
+                      <span className="paperjump-home__hero-step-index">0{index + 1}</span>
+                      <div>
+                        <strong>{item.title}</strong>
+                        <small>{item.description}</small>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="paperjump-home__hero-preview">
@@ -304,132 +306,76 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {currentUser && latestDraft ? (
-                  <div className="paperjump-home__hero-panel">
-                    <div className="paperjump-home__hero-panel-head">
-                      <span>最近内容</span>
-                      <strong>{latestDraft.title}</strong>
-                    </div>
-
-                    <div className="paperjump-home__hero-draft-copy">
-                      <strong>{latestDraft.headline || latestDraft.templateName || '未填写岗位标题'}</strong>
-                      <small>
-                        {latestDraft.status === 'published' ? '已发布' : '草稿中'} · 最近更新{' '}
-                        {formatDraftTime(latestDraft.updatedAt)}
-                      </small>
-                    </div>
-                    <div className="paperjump-home__hero-panel-actions">
-                      <Button type="primary" block onClick={handleOpenLatestDraft}>
-                        继续编辑
-                      </Button>
-                      <Button block onClick={handleCreateDraft}>
-                        新建简历
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
         </section>
 
-        <section className="paperjump-home__drafts" id="recent-drafts">
-          <div className="paperjump-home__inner">
-            <div className="paperjump-home__section-head">
-              <div>
-                <Typography.Title level={2}>{currentUser ? '最近内容' : '开始之前'}</Typography.Title>
-                <Typography.Paragraph>
-                  {currentUser
-                    ? '首页只保留最近几份和继续入口，完整列表、搜索和筛选都放在简历库。'
-                    : '先登录，再从模板开始；写过的内容以后都会回到这里继续。'}
-                </Typography.Paragraph>
-              </div>
-              {currentUser ? (
+        {currentUser ? (
+          <section className="paperjump-home__drafts" id="recent-drafts">
+            <div className="paperjump-home__inner">
+              <div className="paperjump-home__section-head">
+                <div>
+                  <Typography.Title level={2}>最近编辑</Typography.Title>
+                </div>
                 <Button onClick={() => history.push('/resumes')}>打开简历库</Button>
-              ) : (
-                <Button type="primary" onClick={() => openAuthModal('register', '/resumes')}>
-                  登录 / 注册
-                </Button>
-              )}
-            </div>
-            <div className="paperjump-home__workspace-grid">
-              <div className="paperjump-home__workspace-main">
-                {!currentUser ? (
-                  <Card className="paperjump-home__empty-card paperjump-home__setup-card">
-                    <div className="paperjump-home__setup-compact">
-                      <strong>登录后，简历会自动保存在你的账号里。</strong>
-                      <small>从模板开始、写过的内容和最近编辑入口都会留在这里，下次回来可以直接继续。</small>
-                      <div className="paperjump-home__setup-chips">
-                        <span>账号保存</span>
-                        <span>继续编辑</span>
-                        <span>模板优先</span>
-                      </div>
-                    </div>
-                    <Button
-                      type="primary"
-                      onClick={() =>
-                        openAuthModal(
-                          'register',
-                          buildTemplatePickerPath({ from: 'home', intent: 'create' }),
-                        )
-                      }
-                    >
-                      登录后开始
-                    </Button>
-                  </Card>
-                ) : loading ? (
-                  <Card className="paperjump-home__empty-card" loading />
-                ) : draftCount === 0 ? (
-                  <Card className="paperjump-home__empty-card">
-                    <Empty
-                      description="还没有简历，先从模板开始第一份。"
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    >
-                      <Button type="primary" onClick={handleCreateDraft}>
-                        去选模板
-                      </Button>
-                    </Empty>
-                  </Card>
-                ) : (
-                  <Row gutter={[20, 20]}>
-                    {recentDrafts.map((draft) => (
-                      <Col xs={24} md={12} xl={8} key={draft.id}>
-                        <Card className="paperjump-home__draft-card">
-                          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                            <div>
-                              <Typography.Title level={4}>{draft.title}</Typography.Title>
-                              <Typography.Text type="secondary">
-                                {draft.headline || '未填写岗位标题'}
-                              </Typography.Text>
-                            </div>
-                            <div className="paperjump-home__draft-tags">
-                              <Tag bordered={false}>{draft.templateName || '未选择模板'}</Tag>
-                              <Tag bordered={false}>{draft.status === 'published' ? '已发布' : '草稿中'}</Tag>
-                            </div>
-                            <div className="paperjump-home__draft-meta">
-                              <span>最近更新</span>
-                              <strong>{formatDraftTime(draft.updatedAt)}</strong>
-                            </div>
-                            <Space.Compact block>
-                              <Button type="primary" block onClick={() => history.push(`/maker/${draft.id}`)}>
-                                继续编辑
-                              </Button>
-                              <Button
-                                aria-label="删除简历"
-                                icon={<DeleteOutlined />}
-                                onClick={() => handleDeleteDraft(draft.id)}
-                              />
-                            </Space.Compact>
-                          </Space>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                )}
+              </div>
+              <div className="paperjump-home__workspace-grid">
+                <div className="paperjump-home__workspace-main">
+                  {loading ? (
+                    <Card className="paperjump-home__empty-card" loading />
+                  ) : draftCount === 0 ? (
+                    <Card className="paperjump-home__empty-card">
+                      <Empty
+                        description="还没有简历，先从模板开始第一份。"
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      >
+                        <Button type="primary" onClick={handleCreateDraft}>
+                          选模板开始
+                        </Button>
+                      </Empty>
+                    </Card>
+                  ) : (
+                    <Row gutter={[20, 20]}>
+                      {recentDrafts.map((draft) => (
+                        <Col xs={24} md={12} xl={8} key={draft.id}>
+                          <Card className="paperjump-home__draft-card">
+                            <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                              <div>
+                                <Typography.Title level={4}>{draft.title}</Typography.Title>
+                                <Typography.Text type="secondary">
+                                  {draft.headline || '未填写岗位标题'}
+                                </Typography.Text>
+                              </div>
+                              <div className="paperjump-home__draft-tags">
+                                <Tag bordered={false}>{draft.templateName || '未选择模板'}</Tag>
+                                <Tag bordered={false}>{draft.status === 'published' ? '已发布' : '草稿中'}</Tag>
+                              </div>
+                              <div className="paperjump-home__draft-meta">
+                                <span>最近更新</span>
+                                <strong>{formatDraftTime(draft.updatedAt)}</strong>
+                              </div>
+                              <Space.Compact block>
+                                <Button type="primary" block onClick={() => history.push(`/maker/${draft.id}`)}>
+                                  继续编辑
+                                </Button>
+                                <Button
+                                  aria-label="删除简历"
+                                  icon={<DeleteOutlined />}
+                                  onClick={() => handleDeleteDraft(draft.id)}
+                                />
+                              </Space.Compact>
+                            </Space>
+                          </Card>
+                        </Col>
+                      ))}
+                    </Row>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
       </main>
 
       {!currentUser ? (

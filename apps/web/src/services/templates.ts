@@ -6,6 +6,7 @@ import type {
   ResumeLayoutPreset,
   ResumeTitleStyle,
 } from '@/types/resume';
+import { getTemplateRegistryEntry, visibleTemplateCodes } from '@/utils/templateRegistry';
 
 export type TemplateStyleSettings = {
   layoutPreset: ResumeLayoutPreset;
@@ -34,9 +35,48 @@ export type ResumeTemplate = {
 };
 
 export async function queryTemplates() {
-  return request<ResumeTemplate[]>('/api/templates', {
+  const templates = await request<ResumeTemplate[]>('/api/templates', {
     method: 'GET',
   });
+
+  return templates
+    .map((template) => {
+      const registryEntry = getTemplateRegistryEntry(template.code);
+      if (!registryEntry) {
+        return template;
+      }
+
+      return {
+        ...template,
+        name: registryEntry.name,
+        category: registryEntry.category,
+        coverImageUrl: registryEntry.coverImageUrl,
+        description: registryEntry.description,
+        badge: registryEntry.badge,
+        mood: registryEntry.mood,
+        spotlight: registryEntry.spotlight,
+        previewVariant: registryEntry.previewVariant,
+        settings: registryEntry.settings,
+      };
+    })
+    .sort((left, right) => {
+      const leftIndex = visibleTemplateCodes.indexOf(left.code as (typeof visibleTemplateCodes)[number]);
+      const rightIndex = visibleTemplateCodes.indexOf(right.code as (typeof visibleTemplateCodes)[number]);
+
+      if (leftIndex === -1 && rightIndex === -1) {
+        return 0;
+      }
+
+      if (leftIndex === -1) {
+        return 1;
+      }
+
+      if (rightIndex === -1) {
+        return -1;
+      }
+
+      return leftIndex - rightIndex;
+    });
 }
 
 export async function setTemplateFavorite(templateId: number, favorited: boolean) {

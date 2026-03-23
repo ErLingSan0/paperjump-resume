@@ -31,6 +31,16 @@ export default function WorkspaceResumeItem(props: WorkspaceResumeItemProps) {
       <div className="workspace-resume-item__body">
         <div className="workspace-resume-item__header">
           <h3 className="workspace-resume-item__title">{resume.title}</h3>
+          <span
+            className={[
+              'workspace-status',
+              resume.status === 'published' ? 'workspace-status--published' : 'workspace-status--draft',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            {statusLabel}
+          </span>
         </div>
 
         <div className="workspace-resume-item__meta">
@@ -45,17 +55,6 @@ export default function WorkspaceResumeItem(props: WorkspaceResumeItemProps) {
       </div>
 
       <div className="workspace-resume-item__rail">
-        <span
-          className={[
-            'workspace-status',
-            resume.status === 'published' ? 'workspace-status--published' : 'workspace-status--draft',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          {statusLabel}
-        </span>
-
         <div className="workspace-resume-item__actions">
           <Button
             type="primary"

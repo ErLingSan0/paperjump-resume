@@ -3,8 +3,8 @@
   <rect x="48" y="48" width="804" height="1164" rx="28" fill="white" stroke="#E3E5F3"/>
   <rect x="96" y="96" width="218" height="1068" rx="24" fill="#EEF2FF"/>
   <rect x="352" y="120" width="408" height="24" rx="12" fill="#101418"/>
-  <text x="128" y="190" fill="#2151FF" font-size="40" font-family="Arial" font-weight="700">Design</text>
-  <text x="128" y="232" fill="#101418" font-size="40" font-family="Arial" font-weight="700">Showcase</text>
+  <text x="128" y="190" fill="#2151FF" font-size="40" font-family="Arial" font-weight="700">双栏</text>
+  <text x="128" y="232" fill="#101418" font-size="40" font-family="Arial" font-weight="700">设计版</text>
   <rect x="128" y="290" width="154" height="12" rx="6" fill="#2151FF"/>
   <rect x="128" y="332" width="154" height="12" rx="6" fill="#2151FF"/>
   <rect x="128" y="374" width="154" height="12" rx="6" fill="#2151FF"/>

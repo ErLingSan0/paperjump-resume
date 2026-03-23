@@ -11,7 +11,7 @@ export type ResumeSectionKey = (typeof resumeSectionKeys)[number];
 
 export type ResumeLayoutPreset = 'classic' | 'compact';
 
-export type ResumeAccentTone = 'cobalt' | 'sage' | 'ink';
+export type ResumeAccentTone = 'cobalt' | 'sage' | 'ink' | 'violet';
 
 export type ResumeFontFamily = 'studio' | 'system' | 'serif';
 

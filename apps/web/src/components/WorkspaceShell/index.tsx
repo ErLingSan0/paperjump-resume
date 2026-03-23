@@ -108,7 +108,7 @@ export default function WorkspaceShell(props: WorkspaceShellProps) {
             <span className="workspace-shell__brand-mark">纸</span>
             <span className="workspace-shell__brand-copy">
               <strong>纸跃简历</strong>
-              <small>在线简历工作区</small>
+              <small>工作区</small>
             </span>
           </button>
 
@@ -134,8 +134,8 @@ export default function WorkspaceShell(props: WorkspaceShellProps) {
             <div className="workspace-shell__user">
               <span className="workspace-shell__avatar">{avatarText}</span>
               <span className="workspace-shell__user-meta">
-                <strong>{currentUser?.displayName || '工作区'}</strong>
-                <small>{currentUser?.email || '已登录'}</small>
+                <strong>{currentUser?.displayName || '已登录'}</strong>
+                <small>{currentUser?.email || '当前账号'}</small>
               </span>
             </div>
             <Button
@@ -144,7 +144,7 @@ export default function WorkspaceShell(props: WorkspaceShellProps) {
               icon={<PlusOutlined />}
               onClick={() => history.push(buildTemplatePickerPath({ from: activeNav, intent: 'create' }))}
             >
-              选模板开始
+              新建简历
             </Button>
             <Button size="large" icon={<LogoutOutlined />} onClick={handleLogout}>
               退出登录

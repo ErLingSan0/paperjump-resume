@@ -70,6 +70,11 @@ export default function ResumesPage() {
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
   const page = Math.min(currentPage, totalPages);
   const pageRecords = filteredRecords.slice((page - 1) * pageSize, page * pageSize);
+  const hasRecords = records.length > 0;
+  const latestUpdatedLabel = latestResume ? formatDraftTime(latestResume.updatedAt) : '暂无';
+  const listSummary = records.length
+    ? `${filteredRecords.length} 份结果`
+    : '先创建第一份简历';
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -91,66 +96,59 @@ export default function ResumesPage() {
     <WorkspaceShell activeNav="resumes" heroMode="none" title="简历库">
       <div className="workspace-page-stack">
         <section className="workspace-panel">
-          <header className="workspace-panel__header workspace-panel__header--dense">
+          <header className="workspace-panel__header">
             <div>
               <span className="workspace-panel__eyebrow mono-label">RESUMES</span>
-              <h2 className="workspace-panel__title">简历列表</h2>
-              <p className="workspace-panel__meta">
-                所有简历都在这里统一管理，支持搜索、筛选和分页浏览。
-              </p>
-            </div>
-            <div className="workspace-compact-stats" aria-label="简历概览">
-              <span className="workspace-compact-stat">
-                <strong>{records.length}</strong>
-                <small>全部</small>
-              </span>
-              <span className="workspace-compact-stat">
-                <strong>{draftCount}</strong>
-                <small>草稿</small>
-              </span>
-              <span className="workspace-compact-stat">
-                <strong>{latestResume ? formatDraftTime(latestResume.updatedAt) : '--'}</strong>
-                <small>最近更新</small>
-              </span>
+              <h2 className="workspace-panel__title">我的简历</h2>
             </div>
           </header>
 
           <div className="workspace-panel__content">
-            <div className="workspace-toolbar">
-              <div className="workspace-filter-pills">
-                {statusFilters.map((filter) => (
-                  <button
-                    key={filter.key}
-                    type="button"
-                    className={[
-                      'workspace-filter-pill',
-                      statusFilter === filter.key ? 'workspace-filter-pill--active' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => setStatusFilter(filter.key)}
-                  >
-                    <span>{filter.label}</span>
-                    <span className="workspace-filter-pill__count">
-                      {filter.key === 'all'
-                        ? records.length
-                        : filter.key === 'draft'
-                          ? draftCount
-                          : publishedCount}
-                    </span>
-                  </button>
-                ))}
-              </div>
+            {hasRecords ? (
+              <>
+                <div className="workspace-toolbar">
+                  <div className="workspace-filter-pills">
+                    {statusFilters.map((filter) => (
+                      <button
+                        key={filter.key}
+                        type="button"
+                        className={[
+                          'workspace-filter-pill',
+                          statusFilter === filter.key ? 'workspace-filter-pill--active' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => setStatusFilter(filter.key)}
+                      >
+                        <span>{filter.label}</span>
+                        <span className="workspace-filter-pill__count">
+                          {filter.key === 'all'
+                            ? records.length
+                            : filter.key === 'draft'
+                              ? draftCount
+                              : publishedCount}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
 
-              <Input
-                allowClear
-                value={keyword}
-                className="workspace-search"
-                prefix={<SearchOutlined />}
-                placeholder="搜索简历标题或模板"
-                onChange={(event) => setKeyword(event.target.value)}
-              />
-            </div>
+                  <Input
+                    allowClear
+                    value={keyword}
+                    className="workspace-search"
+                    prefix={<SearchOutlined />}
+                    placeholder="搜索标题、方向或模板"
+                    onChange={(event) => setKeyword(event.target.value)}
+                  />
+                </div>
+
+                <div className="workspace-toolbar__summary">
+                  <span>{listSummary}</span>
+                  <span>草稿 {draftCount} 份</span>
+                  <span>最近 {latestUpdatedLabel}</span>
+                </div>
+              </>
+            ) : null}
 
             {loading ? (
               <div className="workspace-loading-list">
@@ -170,14 +168,21 @@ export default function ResumesPage() {
                   <WorkspaceResumeItem
                     key={resume.id}
                     resume={resume}
-                    primaryLabel="继续编辑"
+                    primaryLabel="打开"
                     onDelete={handleDeleteResume}
                     onOpen={(resumeId) => history.push(`/maker/${resumeId}`)}
                   />
                 ))}
               </div>
             ) : (
-              <div className="workspace-empty">
+              <div
+                className={[
+                  'workspace-empty',
+                  hasRecords ? '' : 'workspace-empty--centered',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
                 <div className="workspace-empty__icon">
                   <AppstoreOutlined />
                 </div>
@@ -186,8 +191,8 @@ export default function ResumesPage() {
                 </h3>
                 <p className="workspace-empty__description">
                   {records.length
-                    ? '换个筛选条件试试，或者重新去模板中心开始一份新的。'
-                    : '先去选一个模板开始，之后这里会保留你的全部内容。'}
+                    ? '换个关键词或筛选条件再试试看。'
+                    : '先选一个模板开始，写好的内容都会留在这里。'}
                 </p>
                 <Button
                   type="primary"
@@ -205,7 +210,7 @@ export default function ResumesPage() {
                   current={page}
                   total={filteredRecords.length}
                   pageSize={pageSize}
-                  showTotal={(total, [start, end]) => `${start}-${end} / ${total}`}
+                  showTotal={(total) => `共 ${total} 份`}
                   showLessItems
                   showSizeChanger={false}
                   onChange={(nextPage) => setCurrentPage(nextPage)}

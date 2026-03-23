@@ -22,4 +22,13 @@ export async function getInitialState(): Promise<{
 export const request: RequestConfig = {
   timeout: 10000,
   withCredentials: true,
+  errorConfig: {
+    errorHandler(error, options) {
+      if (options?.skipErrorHandler) {
+        throw error;
+      }
+
+      throw error;
+    },
+  },
 };
