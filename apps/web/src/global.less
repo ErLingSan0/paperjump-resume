@@ -950,6 +950,27 @@ h6,
   gap: 16px;
 }
 
+.workspace-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 560px;
+  border: 1px solid rgba(16, 20, 24, 0.06);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 245, 240, 0.88));
+}
+
+.workspace-loading-state--templates {
+  gap: 14px;
+}
+
+.workspace-loading-state__hint {
+  color: var(--ink-500);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .workspace-template-tile {
   display: flex;
   flex-direction: column;

@@ -6,10 +6,10 @@ import {
   StarOutlined,
 } from '@ant-design/icons';
 import { history, useLocation, useModel } from '@umijs/max';
-import { Button, Skeleton, message } from 'antd';
+import { Button, Spin, message } from 'antd';
 
 import AuthModal from '@/components/AuthModal';
-import TemplatePaperPreview from '@/components/TemplatePaperPreview';
+import TemplatePaperPreview, { getTemplatePreviewAssetUrls } from '@/components/TemplatePaperPreview';
 import WorkspaceShell from '@/components/WorkspaceShell';
 import { createResume, queryResume, updateResume } from '@/services/resumes';
 import type { ResumeTemplate } from '@/services/templates';
@@ -21,6 +21,47 @@ import {
   getTemplatePickerReturnPath,
   applyTemplateSettingsToDraft,
 } from '@/utils/templateFlow';
+
+const templatePreviewAssetCache = new Set<string>();
+
+function preloadImage(src: string) {
+  if (!src || templatePreviewAssetCache.has(src) || typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      templatePreviewAssetCache.add(src);
+      resolve();
+    };
+
+    const image = new window.Image();
+    image.onload = finish;
+    image.onerror = finish;
+    image.src = src;
+
+    if (image.complete) {
+      finish();
+      return;
+    }
+
+    image.decode?.().then(finish).catch(() => undefined);
+  });
+}
+
+async function preloadTemplatePreviewAssets(templates: ResumeTemplate[]) {
+  const assetUrls = Array.from(
+    new Set(templates.flatMap((template) => getTemplatePreviewAssetUrls(template)).filter(Boolean)),
+  );
+
+  await Promise.all(assetUrls.map((src) => preloadImage(src)));
+}
 
 export default function TemplatesPage() {
   const location = useLocation();
@@ -101,10 +142,22 @@ export default function TemplatesPage() {
 
   async function loadTemplates() {
     setLoading(true);
+    setTemplates([]);
 
     try {
       const nextTemplates = await queryTemplates();
-      setTemplates(nextTemplates.filter((template) => template.galleryVisible));
+      const visibleTemplates = nextTemplates.filter((template) => template.galleryVisible);
+      await preloadTemplatePreviewAssets(visibleTemplates);
+
+      if (typeof window !== 'undefined') {
+        await new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => resolve());
+          });
+        });
+      }
+
+      setTemplates(visibleTemplates);
     } catch (error) {
       message.error(getErrorMessage(error, '模板列表加载失败，请稍后再试'));
     } finally {
@@ -181,15 +234,9 @@ export default function TemplatesPage() {
 
           <div className="workspace-panel__content workspace-panel__content--catalog">
             {loading ? (
-              <div className="workspace-template-gallery workspace-template-gallery--focused">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div className="workspace-template-tile workspace-template-tile--loading" key={`template-loading-${index}`}>
-                    <Skeleton.Image active style={{ width: '100%', height: 320 }} />
-                    <div className="workspace-template-tile__body">
-                      <Skeleton active paragraph={{ rows: 2 }} title={{ width: '54%' }} />
-                    </div>
-                  </div>
-                ))}
+              <div className="workspace-loading-state workspace-loading-state--templates">
+                <Spin size="large" tip="模板加载中..." />
+                <div className="workspace-loading-state__hint">正在准备模板预览，请稍候。</div>
               </div>
             ) : templates.length ? (
               <div className="workspace-template-gallery workspace-template-gallery--focused">

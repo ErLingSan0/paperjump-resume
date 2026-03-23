@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 import type { ResumeTemplate } from '@/services/templates';
 
 const templatePreviewAvatarMap: Record<
@@ -53,16 +55,58 @@ const templatePreviewAvatarMap: Record<
 type TemplatePaperPreviewProps = {
   template: ResumeTemplate;
   mode?: 'gallery' | 'picker';
+  onReady?: () => void;
 };
 
-function getTemplatePreviewSource(template: ResumeTemplate) {
+export function getTemplatePreviewSource(template: ResumeTemplate) {
   return template.coverImageUrl || `/template-previews/${template.code}.svg`;
 }
 
+export function getTemplatePreviewAssetUrls(template: ResumeTemplate) {
+  const urls = [getTemplatePreviewSource(template)];
+  const avatarOverlay = templatePreviewAvatarMap[template.code];
+
+  if (avatarOverlay?.src) {
+    urls.push(avatarOverlay.src);
+  }
+
+  return urls;
+}
+
 export default function TemplatePaperPreview(props: TemplatePaperPreviewProps) {
-  const { template, mode = 'gallery' } = props;
+  const { template, mode = 'gallery', onReady } = props;
   const previewSource = getTemplatePreviewSource(template);
   const avatarOverlay = templatePreviewAvatarMap[template.code];
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const avatarRef = useRef<HTMLImageElement | null>(null);
+  const [imageReady, setImageReady] = useState(false);
+  const [avatarReady, setAvatarReady] = useState(!avatarOverlay);
+  const readyEmittedRef = useRef(false);
+
+  useEffect(() => {
+    readyEmittedRef.current = false;
+    setImageReady(false);
+    setAvatarReady(!avatarOverlay);
+  }, [avatarOverlay, previewSource, template.code]);
+
+  useEffect(() => {
+    if (imageRef.current?.complete) {
+      setImageReady(true);
+    }
+
+    if (avatarRef.current?.complete) {
+      setAvatarReady(true);
+    }
+  }, [avatarOverlay, previewSource]);
+
+  useEffect(() => {
+    if (!onReady || readyEmittedRef.current || !imageReady || !avatarReady) {
+      return;
+    }
+
+    readyEmittedRef.current = true;
+    onReady();
+  }, [avatarReady, imageReady, onReady]);
 
   if (previewSource) {
     return (
@@ -76,18 +120,25 @@ export default function TemplatePaperPreview(props: TemplatePaperPreviewProps) {
         <div className="template-paper-preview__frame">
           <div className="template-paper-preview__canvas">
             <img
+              ref={imageRef}
               className="template-paper-preview__image"
               src={previewSource}
               alt={`${template.name} 模板封面`}
-              loading="lazy"
+              loading={mode === 'gallery' ? 'eager' : 'lazy'}
+              fetchPriority={mode === 'gallery' ? 'high' : 'auto'}
+              onLoad={() => setImageReady(true)}
+              onError={() => setImageReady(true)}
             />
             {avatarOverlay ? (
               <img
+                ref={avatarRef}
                 className="template-paper-preview__avatar"
                 src={avatarOverlay.src}
                 alt=""
                 aria-hidden="true"
-                loading="lazy"
+                loading={mode === 'gallery' ? 'eager' : 'lazy'}
+                onLoad={() => setAvatarReady(true)}
+                onError={() => setAvatarReady(true)}
                 style={{
                   left: avatarOverlay.left,
                   top: avatarOverlay.top,
