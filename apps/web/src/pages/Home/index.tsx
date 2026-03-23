@@ -37,6 +37,58 @@ const heroSteps = [
   },
 ];
 
+const anonymousEntryMetrics = [
+  {
+    label: '开始方式',
+    value: '先看正式模板，再决定从哪套开始写。',
+  },
+  {
+    label: '预览方式',
+    value: '边写边看 A4 纸面，不用导出后才发现问题。',
+  },
+  {
+    label: '保存方式',
+    value: '登录后自动保存到账号，下次回来能继续接着写。',
+  },
+  {
+    label: '导出方式',
+    value: '内容写完再微调样式，最后一键导出 PDF。',
+  },
+];
+
+const anonymousHighlights = [
+  {
+    label: '一路写完',
+    title: '模板、内容、导出在一条路径里',
+    description: '先定版式，再补内容，最后导出，不用在几个页面之间来回找入口。',
+  },
+  {
+    label: '边写边看',
+    title: 'A4 纸面始终在右侧',
+    description: '每次改动都会立刻反映在纸面里，问题会在写的时候暴露，不会拖到导出后。',
+  },
+  {
+    label: '接着继续',
+    title: '登录后自动保存到账号',
+    description: '开始写了就能继续回来接着写，适合分几次慢慢补完整份简历。',
+  },
+];
+
+const anonymousUseCases = [
+  {
+    title: '校招 / 第一份正式简历',
+    description: '先用正式结构把教育、项目、实习装进纸面里，避免一开始就写散。',
+  },
+  {
+    title: '社招 / 需要重写经历',
+    description: '用模板先约束密度和层级，再判断哪些经历应该保留、哪些该收短。',
+  },
+  {
+    title: '转岗 / 想把经历重新组织',
+    description: '先看纸面再改内容，更容易判断一页里到底有没有把重点讲清楚。',
+  },
+];
+
 export default function HomePage() {
   const { initialState, setInitialState } = useModel('@@initialState');
   const currentUser = initialState?.currentUser;
@@ -310,6 +362,112 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {!currentUser ? (
+          <>
+            <section className="paperjump-home__metrics">
+              <div className="paperjump-home__inner">
+                <div className="paperjump-home__metric-grid">
+                  {anonymousEntryMetrics.map((item) => (
+                    <div className="paperjump-home__metric-card" key={item.label}>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section className="paperjump-home__proof">
+              <div className="paperjump-home__inner">
+                <div className="paperjump-home__section-head">
+                  <div>
+                    <Typography.Title level={2}>开始之前，先把写作路径理顺</Typography.Title>
+                    <Typography.Paragraph>
+                      不先堆功能，也不先讲概念，首页只把从开始到成稿最关键的三件事摆清楚。
+                    </Typography.Paragraph>
+                  </div>
+                  <Button size="large" onClick={handleCreateDraft}>
+                    注册后选模板
+                  </Button>
+                </div>
+
+                <div className="paperjump-home__proof-grid">
+                  <article className="paperjump-home__proof-card paperjump-home__proof-card--primary">
+                    <span className="paperjump-home__proof-eyebrow">开始一份简历时，你会依次做这三步</span>
+                    <Typography.Title level={3}>先定版式，再补内容，最后导出。</Typography.Title>
+                    <Typography.Paragraph>
+                      这不是一个把所有功能都先塞给你的首页，而是把正确顺序先排好，让你更快进入写作状态。
+                    </Typography.Paragraph>
+                    <div className="paperjump-home__proof-flow" aria-label="开始流程">
+                      {heroSteps.map((item, index) => (
+                        <div className="paperjump-home__proof-flow-item" key={item.title}>
+                          <span className="paperjump-home__proof-flow-index">0{index + 1}</span>
+                          <div>
+                            <strong>{item.title}</strong>
+                            <small>{item.description}</small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <div className="paperjump-home__proof-list">
+                    {anonymousHighlights.map((item) => (
+                      <article className="paperjump-home__proof-card" key={item.label}>
+                        <span className="paperjump-home__proof-label">{item.label}</span>
+                        <Typography.Title level={4}>{item.title}</Typography.Title>
+                        <Typography.Paragraph>{item.description}</Typography.Paragraph>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="paperjump-home__audience">
+              <div className="paperjump-home__inner">
+                <div className="paperjump-home__section-head">
+                  <div>
+                    <Typography.Title level={2}>这些场景会更适合从这里开始</Typography.Title>
+                    <Typography.Paragraph>
+                      无论是第一份正式简历，还是把旧简历重新整理成更可投递的版本，都适合先从模板入口起步。
+                    </Typography.Paragraph>
+                  </div>
+                </div>
+
+                <div className="paperjump-home__audience-grid">
+                  {anonymousUseCases.map((item) => (
+                    <article className="paperjump-home__audience-card" key={item.title}>
+                      <Typography.Title level={4}>{item.title}</Typography.Title>
+                      <Typography.Paragraph>{item.description}</Typography.Paragraph>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section className="paperjump-home__cta">
+              <div className="paperjump-home__inner">
+                <div className="paperjump-home__cta-band">
+                  <div className="paperjump-home__cta-copy">
+                    <span>开始之前</span>
+                    <strong>先挑对版式，再把内容写完整。</strong>
+                    <small>首页先帮你完成第一步，登录后就能直接进入模板选择和在线编辑。</small>
+                  </div>
+                  <Space wrap size={12}>
+                    <Button size="large" onClick={() => openAuthModal('login', '/resumes')}>
+                      登录 / 注册
+                    </Button>
+                    <Button type="primary" size="large" onClick={handleCreateDraft}>
+                      立即开始
+                    </Button>
+                  </Space>
+                </div>
+              </div>
+            </section>
+          </>
+        ) : null}
 
         {currentUser ? (
           <section className="paperjump-home__drafts" id="recent-drafts">

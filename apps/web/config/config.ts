@@ -2,6 +2,7 @@ import { defineConfig } from '@umijs/max';
 
 export default defineConfig({
   npmClient: 'pnpm',
+  title: '纸跃简历',
   hash: true,
   esbuildMinifyIIFE: true,
   links: [
