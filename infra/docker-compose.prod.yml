@@ -5,6 +5,8 @@ services:
     image: mysql:8.4
     container_name: paperjump-mysql
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DB_EXPOSE_PORT:-13306}:3306"
     environment:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
