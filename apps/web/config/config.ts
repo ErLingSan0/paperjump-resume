@@ -2,7 +2,12 @@ import { defineConfig } from '@umijs/max';
 
 export default defineConfig({
   npmClient: 'pnpm',
+  hash: true,
   esbuildMinifyIIFE: true,
+  links: [
+    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+    { rel: 'shortcut icon', href: '/favicon.svg' },
+  ],
   antd: {},
   model: {},
   access: {},
