@@ -5,6 +5,7 @@ import { history, useLocation, useModel } from '@umijs/max';
 import { Button, Typography, message } from 'antd';
 
 import AuthModal from '@/components/AuthModal';
+import FilingFooter from '@/components/FilingFooter';
 import { logout } from '@/services/auth';
 import { getErrorMessage } from '@/utils/request';
 import { buildTemplatePickerPath } from '@/utils/templateFlow';
@@ -189,6 +190,10 @@ export default function WorkspaceShell(props: WorkspaceShellProps) {
           {children}
         </div>
       </main>
+
+      <div className="workspace-shell__inner">
+        <FilingFooter />
+      </div>
 
       {!currentUser ? (
         <AuthModal

@@ -50,6 +50,7 @@ import {
   message,
 } from 'antd';
 
+import FilingFooter from '@/components/FilingFooter';
 import type {
   ResumeAccentTone,
   CustomSection,
@@ -2454,6 +2455,10 @@ function renderCustomPreviewSection(item: CustomSection) {
           </div>
         </div>
       </Drawer>
+
+      <div className="paperjump-maker__footer-shell">
+        <FilingFooter />
+      </div>
     </div>
   );
 }
